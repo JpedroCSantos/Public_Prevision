@@ -73,9 +73,7 @@ Essas bibliotecas principais garantirão que todas as dependências secundárias
 2. `poetry env use 3.12.1`, `poetry install` e `poetry lock`.
 3. Para iniciar o ambiente virtual utilize o comando `source .venv/Scripts/activate`
 4. Criar uma [chave de API do TMDB](https://developer.themoviedb.org/reference/intro/getting-started) e uma [chave de API do OMDB](https://www.omdbapi.com/apikey.aspx).
-5. Execute o comando `python app/database.py` para gerar o arquivo csv da base de dados.
-6. Certifique-se de instalar as versões especificadas das bibliotecas Pandas, Requests
-7. Execute os scripts `python src/main.py` através de um terminal ou ambiente de desenvolvimento que suporte Python.
+5. Execute o comando `python app/main.py` para gerar o arquivo da base de dados e executar o treinamento dos modelos.
 
 ## Estrutura do Projeto
 ```plaintext
