@@ -58,7 +58,7 @@ class TMDBMovieAPI(MovieAPI):
         query (EX: Titulo do filme)
 
         args: Row: Linha do dataframe com as informações para serem utilizadas
-              na busca
+            na busca
 
         return: json
         """
@@ -67,10 +67,11 @@ class TMDBMovieAPI(MovieAPI):
             movie_id = row["id"]
         else:
             responseId = self.search_movie_id(row)
-            if len(responseId) > 0 and "id" in responseId[0]:
+            if responseId and len(responseId) > 0 and "id" in responseId[0]:
                 movie_id = responseId[0]["id"]
+            else:
+                return None
 
-        
         BASE_URL: str = f"https://api.themoviedb.org/3/movie/{movie_id}"
         params = {
             "language": "en-US",
@@ -80,17 +81,20 @@ class TMDBMovieAPI(MovieAPI):
             "accept": "application/json",
             "Authorization": f"Bearer {self.api_key}",
         }
+        
         try:
             response = requests.get(BASE_URL, headers=headers, params=params)
             if response.status_code == 200:
                 data = response.json()
                 with open("TMDB_response.json", "w") as f:
-                        json.dump(data, f)
+                    json.dump(data, f)
                 return self.build_object(data)
             else:
                 return None
-        except:
+        except Exception as e:
+            print(f"Erro na requisição TMDB: {e}")
             return None
+
 
     def build_object(self, api_response: json) -> TmdbSchema:
         """

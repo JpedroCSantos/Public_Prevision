@@ -7,18 +7,54 @@ from api.classes.consult_class import MovieAPI
 from tqdm import tqdm
 import os
 
+# def complete_df(df: pd.DataFrame, apis: List[MovieAPI], save_interval: int = 100) -> pd.DataFrame:
+#     """
+#     Função para completar as informações vazias do dataframe,
+#     através de consultas a várias APIs, salvando progresso em formato Parquet.
+
+#     Args:
+#         df (pd.DataFrame): DataFrame a ser completado.
+#         apis (List[MovieAPI]): Lista de instâncias de classes que implementam a interface MovieAPI para fazer as consultas à API.
+#         save_interval (int): Número de linhas após o qual o progresso será salvo.
+
+#     Returns:
+#         pd.DataFrame: DataFrame completo.
+#     """
+#     all_rows = [api.get_api_dict() for api in apis]
+#     ROWS = {}
+#     for row in all_rows:
+#         ROWS.update(row)
+
+#     data_cache = {index: {} for index in df.index}
+#     rows_to_update = []
+
+#     for index, row in tqdm(df.iterrows(), total=len(df), desc="Consultando API"):
+#         columns_to_update = [
+#             value["row"]
+#             for key, value in ROWS.items()
+#             if pd.isna(pd.Series(row.get(value["row"]))).all()
+#         ]
+#         if columns_to_update:
+#             rows_to_update.append(index)
+
+#         for api in apis:
+#             if any(columns_to_update) and not data_cache[index].get(api):
+#                 data_cache[index][api] = api.search_movie(row, data_cache[index])
+
+#     for index in tqdm(rows_to_update, total=len(rows_to_update), desc="Atualizando Dataframe"):
+#         row = df.loc[index]
+#         for api in apis:
+#             if data_cache[index].get(api) is not None:
+#                 df = insert_info_movie(data_cache[index][api], ROWS, df, index, row)
+
+#     # Salvar o progresso final
+#     save_progress(df, "data/output", "complete_database")
+#     return df
+
 def complete_df(df: pd.DataFrame, apis: List[MovieAPI], save_interval: int = 100) -> pd.DataFrame:
     """
     Função para completar as informações vazias do dataframe,
     através de consultas a várias APIs, salvando progresso em formato Parquet.
-
-    Args:
-        df (pd.DataFrame): DataFrame a ser completado.
-        apis (List[MovieAPI]): Lista de instâncias de classes que implementam a interface MovieAPI para fazer as consultas à API.
-        save_interval (int): Número de linhas após o qual o progresso será salvo.
-
-    Returns:
-        pd.DataFrame: DataFrame completo.
     """
     all_rows = [api.get_api_dict() for api in apis]
     ROWS = {}
