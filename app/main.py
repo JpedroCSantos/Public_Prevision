@@ -24,6 +24,9 @@ from pipeline.load import (
 from prediction.linear_regressor import (
     runLinearRegressor
 )
+from prediction.random_forest_regressor import (
+    random_forest_model
+)
 
 def readDataframe() -> pd.DataFrame:
     return read_dataframe(f"{DATA_PATH}/DATAS/ANALISYS_DATABASE", 'PUBLIC_ANALISYS_DATABASE')
@@ -58,8 +61,8 @@ UPDATE_DATAFRAME = {
     },
 }
 EXECUTE_PREVISION = {
-    "LINEAR_REGRESSOR": True,
-    "RANDON_FOREST": False,
+    "LINEAR_REGRESSOR": False,
+    "RANDON_FOREST": True,
 }
 
 load_dotenv(dotenv_path="env/.env")
@@ -114,12 +117,7 @@ if any(EXECUTE_PREVISION.values()):
     if EXECUTE_PREVISION["LINEAR_REGRESSOR"]:
         DF_FILE = FINAL_PATH + "/" +FINAL_FILE_NAME + ".parquet"
         df = pd.read_parquet(DF_FILE)
-        # df = df.drop(['Title'], axis=1, inplace=False) #Removidas por alta multicolinearidade
-        # df = df.drop(['Cast_3', 'Cast_2', 'Title'], axis=1, inplace=False) #Removidas por alta multicolinearidade
-        # df = df.drop(['Cast_3', 'Cast_2', 'Title', "Director_1"], axis=1, inplace=False) #Removidas por alta multicolinearidade
-        # df = df.drop(['Cast_3', 'Cast_2', 'Title', 'Director_1', 'Production_Companies'], axis=1, inplace=False) #Removidas por alta multicolinearidade
-        # df = df[df['Days_in_exibithion'] > 6]
         runLinearRegressor(df)
 
-    # if EXECUTE_PREVISION["RANDON_FOREST"]:
-    #     runLinearRegressor(df)
+    if EXECUTE_PREVISION["RANDON_FOREST"]:
+        random_forest_model(df)

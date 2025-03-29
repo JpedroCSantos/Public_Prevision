@@ -113,6 +113,9 @@ def runLinearRegressor(df: pd.DataFrame):
     vif_data["VIF"] = [variance_inflation_factor(X.values, i) for i in range(X.shape[1])]
     print(vif_data)
     """ ****************************************************************** """
+    """ ******************** Análise de Homocedasticidade **************** """
+    analyze_homoscedasticity(X, y)
+    """ ****************************************************************** """
     """ ********************* Transformações de Data  ******************** """
     df.loc[:, 'Month'] = df['Release_Date'].dt.month
     df.loc[:, 'Day_of_Week'] = df['Release_Date'].dt.dayofweek
