@@ -31,18 +31,12 @@ from prediction.random_forest_regressor import (
 def readDataframe() -> pd.DataFrame:
     return read_dataframe(f"{DATA_PATH}/DATAS/ANALISYS_DATABASE", 'PUBLIC_ANALISYS_DATABASE')
 
-# def build_apis_objects():
-#     apis = []
-#     apis.append(TMDBMovieAPI(os.getenv("TMDB_KEY")))
-#     apis.append(OMDBMovieAPI(os.getenv("OMDB_KEY")))
-#     return apis
-
 def build_apis_objects():
     apis = []
     apis.append(TMDBMovieAPI(os.getenv("TMDB_KEY")))
     
     # Carregar todas as chaves OMDB a partir do arquivo .env
-    omdb_keys = [os.getenv(f"OMDB_KEY_{i}") for i in range(1, 6)]
+    omdb_keys = [os.getenv(f"OMDB_KEY_{i}") for i in range(1, 9)]
     apis.append(OMDBMovieAPI(omdb_keys))
     
     return apis
@@ -61,8 +55,8 @@ UPDATE_DATAFRAME = {
     },
 }
 EXECUTE_PREVISION = {
-    "LINEAR_REGRESSOR": False,
-    "RANDON_FOREST": True,
+    "LINEAR_REGRESSOR": True,
+    "RANDON_FOREST": False,
 }
 
 load_dotenv(dotenv_path="env/.env")
@@ -83,12 +77,16 @@ if UPDATE_DATAFRAME["NEW_DATAFRAME"]:
     df = remove_coluns(df, COLUNS_TO_DROP)
     load_files(df, f"{DATA_PATH}/DATAS/FILTER_DATABASE", "FILTER_FULL_DATABASE")
     
+    DF_FILE = f"{DATA_PATH}/DATAS/FILTER_DATABASE/" + "FILTER_FULL_DATABASE" + ".parquet"
+    df = pd.read_parquet(DF_FILE)
+
     print("Limpando Dataframe para realizar as Analises")
     COLUNS_TO_DROP = ['AUDIO', 'SESSAO', 'AUDIO', 'LEGENDADA', 
                     'UF_SALA_COMPLEXO', 'TITULO_BRASIL']
     df = remove_coluns(df, COLUNS_TO_DROP)
     df = transform_dataframe(df)
     load_files(df, f"{DATA_PATH}/DATAS/ANALISYS_DATABASE", 'PUBLIC_ANALISYS_DATABASE')
+    del df
 
 if UPDATE_DATAFRAME["COMPLETE_DATAFRAME"]["API_CONSULT"]:
     if os.path.exists(TEMP_PARQUET_FILE):
@@ -107,11 +105,13 @@ if UPDATE_DATAFRAME["COMPLETE_DATAFRAME"]["API_CONSULT"]:
         load_files(df, f"{DATA_PATH}/DATAS/{api_name}_CONSULT_DATABASE", f"{api_name}_DATA")
     print("Consultas completas!")
     load_files(df, f"{DATA_PATH}/DATAS/ANALISYS_DATABASE", "CONSULT_API_DATAFRAME")
+    del df
 
 if UPDATE_DATAFRAME["COMPLETE_DATAFRAME"]["FILTER_DATAFRAME"]:
     df = read_dataframe(f"{DATA_PATH}/DATAS/ANALISYS_DATABASE", "CONSULT_API_DATAFRAME")
     df = filter_dataframe(df)
     load_files(df, FINAL_PATH, FINAL_FILE_NAME)
+    del df
 
 if any(EXECUTE_PREVISION.values()):
     if EXECUTE_PREVISION["LINEAR_REGRESSOR"]:
@@ -120,4 +120,6 @@ if any(EXECUTE_PREVISION.values()):
         runLinearRegressor(df)
 
     if EXECUTE_PREVISION["RANDON_FOREST"]:
+        DF_FILE = FINAL_PATH + "/" +FINAL_FILE_NAME + ".parquet"
+        df = pd.read_parquet(DF_FILE)
         random_forest_model(df)

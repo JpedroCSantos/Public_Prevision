@@ -33,34 +33,6 @@ def remove_coluns(df: pd.DataFrame, columns_to_remove: List[str]):
     print("Removendo Colunas")
     return df.drop(columns_to_remove, axis=1)
 
-# def transform_dataframe(df: pd.DataFrame) -> pd.DataFrame:
-#     """
-#     Transforma o DataFrame agrupando por CPB_ROE, somando o público e calculando dias de exibição.
-#     Filtra interrupções maiores que 2 semanas e descarta linhas com público acima de 500.
-#     """
-#     print("Transformando DataFrame")
-
-#     df['DATA_EXIBICAO'] = pd.to_datetime(df['DATA_EXIBICAO'], format="%d/%m/%Y", dayfirst=True, errors='coerce')
-#     df['PUBLICO'] = pd.to_numeric(df['PUBLICO'], errors='coerce').fillna(0)
-#     df = df[df['PUBLICO'] <= 500]
-
-#     df['DIFF_DAYS'] = df.groupby('CPB_ROE')['DATA_EXIBICAO'].diff().dt.days
-#     df['VALID'] = (df['DIFF_DAYS'] <= 14) | df['DIFF_DAYS'].isna()
-#     df = df[df['VALID']].drop(columns=['DIFF_DAYS', 'VALID'])
-
-#     df_resultado = df.groupby('CPB_ROE').agg(
-#         DATA_EXIBICAO_min=('DATA_EXIBICAO', 'min'),
-#         DATA_EXIBICAO_max=('DATA_EXIBICAO', 'max'),
-#         PUBLICO_sum=('PUBLICO', 'sum'),
-#         PAIS_OBRA_first=('PAIS_OBRA', 'first'),
-#         Title_first=('TITULO_ORIGINAL', 'first')
-#     ).reset_index()
-
-#     df_resultado['DIAS_EM_EXIBICAO'] = (df_resultado['DATA_EXIBICAO_max'] - df_resultado['DATA_EXIBICAO_min']).dt.days
-#     df_resultado = df_resultado[df_resultado['DIAS_EM_EXIBICAO'] < 300]
-
-#     return df_resultado
-
 def transform_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     """
     Transforma o DataFrame agrupando por CPB_ROE, somando o público e calculando dias de exibição.
@@ -69,21 +41,63 @@ def transform_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     """
     print("Transformando DataFrame")
 
+    df = df.copy()
+
     df['DATA_EXIBICAO'] = pd.to_datetime(df['DATA_EXIBICAO'], format="%d/%m/%Y", dayfirst=True, errors='coerce')
     df['PUBLICO'] = pd.to_numeric(df['PUBLICO'], errors='coerce').fillna(0)
     df = df[df['PUBLICO'] <= 500]
+    # df['EXIBICAO_UNICA'] = df.groupby('CPB_ROE')['DATA_EXIBICAO'].transform(lambda x: x.nunique())
+    df.loc[:, 'EXIBICAO_UNICA'] = df.groupby('CPB_ROE')['DATA_EXIBICAO'].transform(lambda x: x.nunique())
+    df = df.sort_values(by=['CPB_ROE', 'DATA_EXIBICAO'])
 
-    df['EXIBICAO_UNICA'] = df.groupby('CPB_ROE')['DATA_EXIBICAO'].transform(lambda x: x.nunique())
+    df['FIRST_EXIBICAO'] = df.groupby('CPB_ROE')['DATA_EXIBICAO'].transform('min')
+    df['DIAS_EM_EXIBICAO'] = 0
+    for cpb, group in df.groupby('CPB_ROE'):
+        last_exhibition = None
+        total_days = 0
+
+        for idx, row in group.iterrows():
+            if last_exhibition is not None:
+                days_diff = (row['DATA_EXIBICAO'] - last_exhibition).days
+                if days_diff > 365:  # Se passar mais de 365 dias sem exibição, interrompe o cálculo
+                    continue
+                total_days += days_diff
+            last_exhibition = row['DATA_EXIBICAO']
+        df.loc[group.index, 'DIAS_EM_EXIBICAO'] = total_days
+
     df_resultado = df.groupby('CPB_ROE').agg(
         PUBLICO_sum=('PUBLICO', 'sum'),
-        EXIBICAO_UNICA=('EXIBICAO_UNICA', 'first'),
+        DIAS_EM_EXIBICAO=('DIAS_EM_EXIBICAO', 'first'),
         PAIS_OBRA_first=('PAIS_OBRA', 'first'),
-        Title_first=('TITULO_ORIGINAL', 'first')
+        Title_first=('TITULO_ORIGINAL', 'first'),
+        FIRST_EXIBICAO=('FIRST_EXIBICAO', 'first')
     ).reset_index()
 
-    df_resultado = df_resultado.rename(columns={'EXIBICAO_UNICA': 'DIAS_EM_EXIBICAO'})
-
     return df_resultado
+
+# def transform_dataframe(df: pd.DataFrame) -> pd.DataFrame:
+#     """
+#     Transforma o DataFrame agrupando por CPB_ROE, somando o público e calculando dias de exibição.
+#     Filtra interrupções maiores que 2 semanas e descarta linhas com público acima de 500.
+#     Modificação para contar dias de exibição de acordo com a nova abordagem.
+#     """
+#     print("Transformando DataFrame")
+
+#     df['DATA_EXIBICAO'] = pd.to_datetime(df['DATA_EXIBICAO'], format="%d/%m/%Y", dayfirst=True, errors='coerce')
+#     df['PUBLICO'] = pd.to_numeric(df['PUBLICO'], errors='coerce').fillna(0)
+#     df = df[df['PUBLICO'] <= 500]
+
+#     df['EXIBICAO_UNICA'] = df.groupby('CPB_ROE')['DATA_EXIBICAO'].transform(lambda x: x.nunique())
+#     df_resultado = df.groupby('CPB_ROE').agg(
+#         PUBLICO_sum=('PUBLICO', 'sum'),
+#         EXIBICAO_UNICA=('EXIBICAO_UNICA', 'first'),
+#         PAIS_OBRA_first=('PAIS_OBRA', 'first'),
+#         Title_first=('TITULO_ORIGINAL', 'first')
+#     ).reset_index()
+
+#     df_resultado = df_resultado.rename(columns={'EXIBICAO_UNICA': 'DIAS_EM_EXIBICAO'})
+
+#     return df_resultado
 
 
 def _split_Columns(df, columns_to_split):
@@ -120,19 +134,18 @@ def remove_zero_or_nan_rows(df: pd.DataFrame, columns: List[str]) -> pd.DataFram
 
 def filter_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     df = df.drop_duplicates(subset='CPB_ROE')
-    # df = df.drop(['DATA_EXIBICAO_max', 'production_cost', 'release_date', 
-    #             'vote_count', 'id', 'Genre_2', 'Genre_3', 'popularity',
-    #             'Metascore', 'imdb_id', 'Rated', 'CPB_ROE'], axis=1)
-    df = df.drop(['production_cost', 'vote_count', 'id', 'Genre_2', 'Genre_3', 
-                  'popularity', 'Metascore', 'imdb_id', 'Rated', 'CPB_ROE'], axis=1)
 
     df = df.rename(columns={'PUBLICO_sum': 'Public_Total'})
-    df = df.rename(columns={'release_date': 'Release_Date'})
+    # df = df.rename(columns={'release_date': 'Release_Date'})
+    df = df.rename(columns={'FIRST_EXIBICAO': 'Release_Date'})
     df = df.rename(columns={'PAIS_OBRA_first': 'Prodution_country'})
     df = df.rename(columns={'DIAS_EM_EXIBICAO': 'Days_in_exibithion'})
     df = df.rename(columns={'vote_average': 'Vote_Average'})
-    df = df.rename(columns={'vote_count': 'Vote_Count'})
+    # df = df.rename(columns={'vote_count': 'Vote_Count'})
+    df = df.loc[df.groupby('imdb_id')['Days_in_exibithion'].idxmax()]
 
+    df = df.drop(['production_cost', 'vote_count', 'id', 'Genre_2', 'Genre_3', 
+                  'popularity', 'Metascore', 'imdb_id', 'Rated', 'CPB_ROE', 'release_date'], axis=1)
     df = remove_zero_or_nan_rows(df, ['Public_Total','Release_Date', 'Title', 'Prodution_country',
                                         'Days_in_exibithion', 'Runtime', 'Vote_Average', 'Genre_1',
                                         'Production_Companies', 'Director', 'Cast', 'IMDB_Rating'])

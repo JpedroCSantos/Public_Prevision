@@ -84,7 +84,7 @@ def runLinearRegressor(df: pd.DataFrame):
 
     dependent_var = 'Public_Total'
     independent_vars = numerical_cols
-    analyze_distribution(df, independent_vars)
+    # analyze_distribution(df, independent_vars)
     """ ****************************************************************** """
     """ ***************** Transformar as Distribuições ******************* """
     df['Public_Total'] = df['Public_Total'].apply(lambda x: np.log(x + 1))
@@ -93,20 +93,20 @@ def runLinearRegressor(df: pd.DataFrame):
     df[['Public_Total', 'Days_in_exibithion']].hist(bins=50, figsize=(12, 8))
     plt.tight_layout()
     plt.show()
-    analyze_distribution(df, independent_vars)
+    # analyze_distribution(df, independent_vars)
     """ ****************************************************************** """
     """ ******************** Análise de Correlação *********************** """
     numeric_cols = [col for col in numerical_cols if col != 'Public_Total']
     correlation_matrix = df[numeric_cols].corr()
     print(correlation_matrix)
 
-    plt.figure(figsize=(12, 8))
-    sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', fmt='.2f', linewidths=0.5)
-    plt.title('Matriz de Correlação')
-    plt.show()
+    # plt.figure(figsize=(12, 8))
+    # sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', fmt='.2f', linewidths=0.5)
+    # plt.title('Matriz de Correlação')
+    # plt.show()
 
     X = df[numeric_cols]
-    X = add_constant(X)
+    # X = add_constant(X)
 
     vif_data = pd.DataFrame()
     vif_data["Variable"] = X.columns
@@ -114,7 +114,7 @@ def runLinearRegressor(df: pd.DataFrame):
     print(vif_data)
     """ ****************************************************************** """
     """ ******************** Análise de Homocedasticidade **************** """
-    analyze_homoscedasticity(X, y)
+    # analyze_homoscedasticity(X, y)
     """ ****************************************************************** """
     """ ********************* Transformações de Data  ******************** """
     df.loc[:, 'Month'] = df['Release_Date'].dt.month
@@ -139,8 +139,8 @@ def runLinearRegressor(df: pd.DataFrame):
     print(df.head())
     """ ****************************************************************** """
     """ ******************* Adicionando correlações ********************** """
-    df['Interaction_Cast'] = df['Cast_1'] * df['Cast_2'] * df['Cast_3']
-    df = df.drop(['Cast_1', 'Cast_2', 'Cast_3'], axis=1, inplace=False)
+    df['Interaction_Cast'] = df['Cast_1'] * df['Cast_2'] * df['Cast_3'] * df['Director_1']
+    df = df.drop(['Cast_1', 'Cast_2', 'Cast_3', 'Director_1'], axis=1, inplace=False)
     """ ****************************************************************** """
     """ ****************** Padronização das Variáveis ********************* """
     scaler = StandardScaler()
@@ -160,7 +160,7 @@ def runLinearRegressor(df: pd.DataFrame):
 
 
     X = df[col]
-    X = add_constant(X)
+    # X = add_constant(X)
 
     vif_data = pd.DataFrame()
     vif_data["Variable"] = X.columns

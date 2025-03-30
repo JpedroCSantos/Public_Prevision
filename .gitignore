@@ -18,6 +18,7 @@ data/output/DATAS
 data/input/bilheteria-diaria-obras-por-exibidoras-csv
 data/input/Leitura_teste
 data/input/Outros
+data/input/ZIP
 *.json
 *.db
 
