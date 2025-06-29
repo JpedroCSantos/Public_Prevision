@@ -71,7 +71,7 @@ if __name__ == "__main__":
     df_features = enconding_features(['Genre_1','Genre_2','Genre_3'],df_features)
     df_features = enconding_features('Director_1',df_features)
     df_features = enconding_features('original_language',df_features)
-    df_features = enconding_features('Production_Companies',df_features)
+    df_features = enconding_features('production_companies',df_features)
     # print(df_features.columns)
 
     # df_features = normalize_df('StandardScaler', df_features)

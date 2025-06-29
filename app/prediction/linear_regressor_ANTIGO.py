@@ -244,3 +244,12 @@ if __name__ == "__main__":
 
     df = pd.read_parquet(DF_FILE)
     runLinearRegressor(df)
+
+
+
+
+
+    // ... existing code ...
+    # Treinando o pipeline
+    model_pipeline.fit(X_train, y_train)
+    print("Pipeline de pré-processamento e treinamento concluído.")

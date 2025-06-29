@@ -20,7 +20,7 @@ class Movie(Base):
     Genre_3 = Column(String)
     original_language = Column(String)
     popularity = Column(Integer)
-    Production_Companies = Column(String)
+    production_companies = Column(String)
     vote_average = Column(Integer)
     vote_count = Column(Integer)
     Cast_1 = Column(String)

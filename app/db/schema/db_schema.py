@@ -17,7 +17,7 @@ class MovieSchema(BaseModel):
     Genre_3: Optional[str]
     original_language: str
     popularity: Optional[float]
-    Production_Companies: Optional[str]
+    production_companies: Optional[str]
     vote_average: Optional[float]
     vote_count: Optional[int]
     Cast_1: str

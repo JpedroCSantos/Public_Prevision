@@ -51,41 +51,30 @@ import os
 #     save_progress(df, "data/output", "complete_database")
 #     return df
 
-def complete_df(df: pd.DataFrame, apis: List[MovieAPI], save_interval: int = 100) -> pd.DataFrame:
+def complete_df(df: pd.DataFrame, apis: List[MovieAPI]) -> pd.DataFrame:
     """
-    Função para completar as informações vazias do dataframe,
-    através de consultas a várias APIs, salvando progresso em formato Parquet.
+    Completa o DataFrame com informações das APIs.
     """
-    all_rows = [api.get_api_dict() for api in apis]
-    ROWS = {}
-    for row in all_rows:
-        ROWS.update(row)
-
-    data_cache = {index: {} for index in df.index}
-    rows_to_update = []
-
-    for index, row in tqdm(df.iterrows(), total=len(df), desc="Consultando API"):
-        columns_to_update = [
-            value["row"]
-            for key, value in ROWS.items()
-            if pd.isna(pd.Series(row.get(value["row"]))).all()
-        ]
-        if columns_to_update:
-            rows_to_update.append(index)
-
+    updated_rows = []
+    
+    for _, row in tqdm(df.iterrows(), total=df.shape[0], desc="Consultando APIs"):
+        current_row_data = row.to_dict()
+        
         for api in apis:
-            if any(columns_to_update) and not data_cache[index].get(api):
-                data_cache[index][api] = api.search_movie(row, data_cache[index])
+            api_response = api.search_movie(current_row_data)
+            
+            if api_response:
+                # Converte o schema da API (dataclass) para um dicionário
+                api_data = vars(api_response)
+                # Remove valores nulos para não sobrescrever dados existentes com nada
+                api_data = {k: v for k, v in api_data.items() if pd.notna(v)}
+                # Atualiza o dicionário da linha atual com os dados da API
+                current_row_data.update(api_data)
 
-    for index in tqdm(rows_to_update, total=len(rows_to_update), desc="Atualizando Dataframe"):
-        row = df.loc[index]
-        for api in apis:
-            if data_cache[index].get(api) is not None:
-                df = insert_info_movie(data_cache[index][api], ROWS, df, index, row)
+        updated_rows.append(current_row_data)
 
-    # Salvar o progresso final
-    save_progress(df, "data/output", "complete_database")
-    return df
+    # Cria um novo DataFrame a partir das linhas atualizadas
+    return pd.DataFrame(updated_rows)
 
 def save_progress(df: pd.DataFrame, output_path: str, filename: str):
     """

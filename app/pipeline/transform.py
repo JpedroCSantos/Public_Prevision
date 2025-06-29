@@ -156,7 +156,7 @@ def filter_dataframe(df: pd.DataFrame) -> pd.DataFrame:
 
     cols_to_check = ['Public_Total','Release_Date', 'Prodution_country',
                      'Days_in_exibithion', 'Runtime', 'Vote_Average', 'Genre_1',
-                     'Production_Companies', 'Director', 'Cast', 'IMDB_Rating',
+                     'production_companies', 'Director', 'Cast', 'IMDB_Rating',
                      'Number_of_exhibition_rooms']
     
     existing_cols_to_check = [col for col in cols_to_check if col in df_copy.columns]
@@ -178,7 +178,7 @@ def get_variable_dictionary(variable: str) -> str:
         "Days_in_exibithion": "Dias em exibição",
         "Genre_1": "Gênero",
         "Prodution_country": "País de Produção",
-        "Production_Companies": "Empresa Produtora",
+        "production_companies": "Empresa Produtora",
         "Director_1": "Diretor",
         "Cast_1": "Ator Principal",
         "Public_Total": "Publico Total",
