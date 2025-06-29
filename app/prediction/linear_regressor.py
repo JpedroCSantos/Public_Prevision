@@ -25,49 +25,58 @@ def runLinearRegressor(df: pd.DataFrame):
     # Remoção de variáveis não significativas e das que causam overfitting para criar um modelo base.
     vars_to_drop = [
         'Runtime', 'Vote_Average', 'IMDB_Rating', 'Month', 'Day_of_Week_sin',
-        'Cast_1', 'Cast_2', 'Cast_3', # 'Director_1' é mantido temporariamente
+        'Director_1', 'Release_Date', 'budget'
     ]
     df = df.drop(columns=vars_to_drop, errors='ignore')
-    print(f"Variáveis removidas para o modelo base. Novo formato: {df.shape}")
-    print(f"Variáveis mantidas: {list(df.columns)}")
-    # =======================================
-
-    # 2. Pré-processamento e Feature Engineering
-    # Converte a data de lançamento, extrai features e remove a coluna original
-    df['Release_Date'] = pd.to_datetime(df['Release_Date'], errors='coerce')
-    df = df.dropna(subset=['Release_Date'])
-    df = df.drop(['Release_Date'], axis=1)
-
-    # Transformação logarítmica da variável alvo para normalizar a distribuição e reduzir o impacto de outliers
-    # np.log1p(x) é equivalente a np.log(x + 1), mais estável para valores pequenos
+    print(f"Variáveis removidas. Mantendo 'Cast_1, 2, 3' para engenharia de features. Novo formato: {df.shape}")
+    
+    # Transformação logarítmica da variável alvo
     df['Public_Total'] = np.log1p(df['Public_Total'])
 
-    # 3. Separação em Conjuntos de Treino e Teste
-    # Este é um passo crucial para evitar data leakage
+    # 2. Separação em Conjuntos de Treino e Teste
     X = df.drop('Public_Total', axis=1)
     y = df['Public_Total']
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
     
-    # Garantindo que os conjuntos de treino e teste permaneçam como DataFrames
     X_train = pd.DataFrame(X_train, columns=X.columns)
     X_test = pd.DataFrame(X_test, columns=X.columns)
     
-    # Engenharia de Features: Popularidade do Diretor (Pós-Split)
-    print("Iniciando engenharia de features: Popularidade do Diretor...")
-    director_popularity = pd.concat([X_train, y_train], axis=1).groupby('Director_1')['Public_Total'].mean()
-    global_mean_popularity = y_train.mean()
+    # 3. Engenharia de Features: Níveis de Elenco (Pós-Split)
+    print("Iniciando engenharia de features: Níveis de Elenco...")
+    # Contar a frequência de cada ator APENAS no conjunto de treino
+    cast_cols = ['Cast_1', 'Cast_2', 'Cast_3']
+    actor_counts = pd.concat([X_train[col] for col in cast_cols]).value_counts()
     
-    X_train.loc[:, 'Director_Popularity'] = X_train['Director_1'].map(director_popularity).fillna(global_mean_popularity)
-    X_test.loc[:, 'Director_Popularity'] = X_test['Director_1'].map(director_popularity).fillna(global_mean_popularity)
+    # Definir os limiares para os tiers (quantis)
+    q1 = actor_counts.quantile(0.66) # 66% menos frequentes
+    q2 = actor_counts.quantile(0.95) # 95% mais frequentes
     
-    X_train = X_train.drop('Director_1', axis=1)
-    X_test = X_test.drop('Director_1', axis=1)
-    print("Feature 'Director_Popularity' criada e coluna original removida.")
+    def get_actor_tier(actor, counts, q1, q2):
+        count = counts.get(actor, 0)
+        if count > q2:
+            return 3 # Tier 1 (A-Lister)
+        elif count > q1:
+            return 2 # Tier 2 (Regular)
+        else:
+            return 1 # Tier 3 (Outros)
+
+    for col in cast_cols:
+        X_train[f'{col}_tier'] = X_train[col].apply(lambda x: get_actor_tier(x, actor_counts, q1, q2))
+        X_test[f'{col}_tier'] = X_test[col].apply(lambda x: get_actor_tier(x, actor_counts, q1, q2))
+
+    # Criar uma única feature de "força do elenco"
+    X_train['Cast_Power'] = X_train[[f'{col}_tier' for col in cast_cols]].max(axis=1)
+    X_test['Cast_Power'] = X_test[[f'{col}_tier' for col in cast_cols]].max(axis=1)
+
+    # Remover as colunas originais e de tier
+    cols_to_drop_post_feature_eng = cast_cols + [f'{col}_tier' for col in cast_cols]
+    X_train = X_train.drop(columns=cols_to_drop_post_feature_eng)
+    X_test = X_test.drop(columns=cols_to_drop_post_feature_eng)
+    print("Feature 'Cast_Power' criada e colunas originais de elenco removidas.")
 
     print(f"Dados divididos em treino ({X_train.shape[0]} amostras) e teste ({X_test.shape[0]} amostras).")
 
     # 4. Codificação e Padronização
-    # Identifica as colunas por tipo para aplicar as transformações corretas
     categorical_cols = X_train.select_dtypes(include=['object']).columns.tolist()
     
     # Target Encoding para variáveis categóricas
