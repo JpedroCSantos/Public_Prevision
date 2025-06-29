@@ -88,14 +88,21 @@ Para incrementar o poder preditivo do modelo base, foi adotado um fluxo de traba
     *   **R² no conjunto de Teste: 0.630**
 *   **Análise e Decisão:** **A hipótese foi validada com sucesso.** A introdução da `Cast_Power` melhorou ligeiramente o poder preditivo do modelo, mas, crucialmente, o fez sem causar overfitting. A proximidade entre os R² de treino (64.8%) e teste (63.0%) demonstra que a feature generaliza bem. A variável se mostrou estatisticamente significativa e com um coeficiente positivo, alinhado à teoria. **Conclusão: o modelo base foi aprimorado com a inclusão da `Cast_Power`, tornando-se o nosso novo modelo de referência.**
 
-#### 4.3. Iteração 5: Teste da Hipótese da "Força do Diretor" (Revisada)
+#### 4.3. Iteração 5: Reavaliação de Variáveis Removidas (`Runtime` e Notas de Avaliação)
 
-*   **Objetivo:** Verificar se a metodologia de "tiering" por frequência, bem-sucedida para o elenco, também se aplicaria aos diretores.
-*   **Metodologia:** Foi criada a variável `Director_Power` usando a mesma lógica da `Cast_Power` (tiers baseados em frequência no treino).
-*   **Resultados:**
-    *   **Média do R² na Validação Cruzada (treino): 0.648**
-    *   **R² no conjunto de Teste: 0.640**
-*   **Análise e Decisão:** Este experimento gerou um aprendizado valioso. A feature `Director_Power` se mostrou estatisticamente significativa (p = 0.023) e não causou overfitting. Contudo, seu **coeficiente foi negativo (-0.0877)**, sugerindo que diretores mais frequentes estão associados a um público menor. Essa conclusão, embora estatisticamente válida, é **teoricamente contra-intuitiva**. Um modelo preditivo deve ter, além de acurácia, interpretabilidade. Manter uma variável que contradiz a lógica do fenômeno estudado enfraquece o modelo. **Conclusão: a hipótese foi rejeitada.** A frequência não é um bom proxy para o apelo popular de um diretor nos dados. A decisão metodológica correta é **descartar esta feature** e manter o modelo da Iteração 4.
+*   **Objetivo:** Após a construção de um modelo base robusto, revisitamos a hipótese inicial de que as variáveis `Runtime`, `IMDB_Rating` e `Vote_Average` poderiam, de fato, contribuir para o modelo preditivo.
+*   **Metodologia:** As variáveis foram reintroduzidas, e para tratar a multicolinearidade observada entre `IMDB_Rating` e `Vote_Average`, elas foram combinadas em uma única feature `Quality_Score`.
+*   **Resultados Finais:** R² de Teste **0.638** | R² de Treino (CV) **0.645**.
+*   **Análise e Decisão:** Embora o modelo tenha se tornado estatisticamente mais robusto (sem multicolinearidade), os R² não mostraram ganho preditivo real. Além disso, a `Quality_Score` apresentou um coeficiente negativo, teoricamente contraintuitivo.
+*   **Conclusão Final do Experimento:** Com base no **Princípio da Parcimônia**, a decisão correta é **não incluir `Runtime` e a `Quality_Score` no modelo final**. Elas adicionam complexidade sem ganho preditivo.
+
+### Experimento 6: Teste da Hipótese da "Força da Produtora" (`Production_Company_Power`)
+
+*   **Objetivo:** Testar se a lógica de "tiering" por frequência, bem-sucedida para o elenco, se aplicaria às produtoras.
+*   **Metodologia:** Foi criada a variável `Production_Company_Power` usando o mesmo método de "tiering" por frequência no conjunto de treino.
+*   **Resultados:** R² de Teste **0.629** | R² de Treino (CV) **0.633** | P-valor da `Production_Company_Power`: **0.874**.
+*   **Análise e Decisão:** A nova feature se mostrou **estatisticamente não significativa** e **não houve incremento no R²**.
+*   **Conclusão Final do Experimento:** **A hipótese foi rejeitada.** A frequência da produtora não é um bom preditor de bilheteria neste modelo. O modelo do Experimento 4 permanece como o melhor.
 
 ### 5. Modelo Final Aprimorado e Próximos Passos
 
@@ -159,27 +166,258 @@ Vamos focar na Fase 1.
 **Experimento 4: Adicionando "Poder do Elenco" (Cast_Power)**
 *   **Descrição:** Adição da feature `Cast_Power` (engenharia de variável baseada na frequência dos atores) ao modelo do Experimento 3.
 *   **Resultados:** R² de Teste **0.629** | R² de Treino (CV) **0.634**.
-*   **Conclusão:** SUCESSO. A feature `Cast_Power` se mostrou altamente significativa (p-valor = 0.000) e adicionou mais 1 p.p. de performance de forma estável. A hipótese foi validada.
-
-**Próximo Passo:** Aplicar uma engenharia de feature similar (baseada em frequência) para a variável `Production_Companies` para criar uma feature `Production_Company_Power`.
+*   **Conclusão:** SUCESSO. A feature `Cast_Power` se mostrou altamente significativa (p-valor = 0.000) e adicionou mais 1 p.p. de performance de forma estável. A hipótese foi validada. O modelo resultante deste experimento é o nosso benchmark final.
 
 ### Experimento 5: Reavaliação de Variáveis Removidas (`Runtime` e Notas de Avaliação)
+*   **Objetivo:** Após a construção de um modelo base robusto, revisitamos a hipótese inicial de que as variáveis `Runtime`, `IMDB_Rating` e `Vote_Average` poderiam, de fato, contribuir para o modelo preditivo.
+*   **Metodologia:** As variáveis foram reintroduzidas, e para tratar a multicolinearidade observada entre `IMDB_Rating` e `Vote_Average`, elas foram combinadas em uma única feature `Quality_Score`.
+*   **Resultados Finais:** R² de Teste **0.638** | R² de Treino (CV) **0.645**.
+*   **Análise e Decisão:** Embora o modelo tenha se tornado estatisticamente mais robusto (sem multicolinearidade), os R² não mostraram ganho preditivo real. Além disso, a `Quality_Score` apresentou um coeficiente negativo, teoricamente contraintuitivo.
+*   **Conclusão Final do Experimento:** Com base no **Princípio da Parcimônia**, a decisão correta é **não incluir `Runtime` e a `Quality_Score` no modelo final**. Elas adicionam complexidade sem ganho preditivo.
 
-*   **Objetivo:** Após a construção de um modelo base robusto, revisitamos a hipótese inicial de que as variáveis `Runtime`, `IMDB_Rating` e `Vote_Average` poderiam, de fato, contribuir para o modelo preditivo. O objetivo era verificar se, na presença de preditores mais bem especificados, essas variáveis ainda se mostrariam relevantes.
-*   **Metodologia (Parte 1 - Multicolinearidade):** As três variáveis foram reintroduzidas no modelo mais completo até então (incluindo `Genre` e `Cast_Power`). A análise do sumário estatístico imediatamente revelou:
-    1.  **Significância Estatística:** Todas as três variáveis se mostraram individualmente significativas (p-valor < 0.05).
-    2.  **Multicolinearidade:** O modelo apresentou um coeficiente negativo e significativo para `IMDB_Rating`, o que é teoricamente contraintuitivo. O diagnóstico do `statsmodels` (com um "Condition Number" altíssimo de `1.69e+15`) confirmou a presença de forte multicolinearidade. As variáveis `IMDB_Rating` e `Vote_Average` medem o mesmo conceito latente ("qualidade do filme") e sua presença simultânea estava inflando os erros padrão e tornando os coeficientes ininterpretáveis.
+### Experimento 6: Teste da Hipótese da "Força da Produtora" (`Production_Company_Power`)
+*   **Objetivo:** Testar se a lógica de "tiering" por frequência, bem-sucedida para o elenco, se aplicaria às produtoras.
+*   **Metodologia:** Foi criada a variável `Production_Company_Power` usando o mesmo método de "tiering" por frequência no conjunto de treino.
+*   **Resultados:** R² de Teste **0.629** | R² de Treino (CV) **0.633** | P-valor da `Production_Company_Power`: **0.874**.
+*   **Análise e Decisão:** A nova feature se mostrou **estatisticamente não significativa** e **não houve incremento no R²**.
+*   **Conclusão Final do Experimento:** **A hipótese foi rejeitada.** A frequência da produtora não é um bom preditor de bilheteria neste modelo. O modelo do Experimento 4 permanece como o melhor.
 
-*   **Metodologia (Parte 2 - Engenharia de Feature `Quality_Score`):** Para resolver a multicolinearidade, seguimos a abordagem recomendada por Hair et al. (2009): combinar as variáveis colineares. Criamos uma nova feature, `Quality_Score`, como a média simples de `IMDB_Rating` e `Vote_Average`. As variáveis originais foram então removidas.
+### 5. Modelo Final Aprimorado e Próximos Passos
 
-*   **Resultados Finais:**
-    *   **Média do R² na Validação Cruzada (treino): 0.645**
-    *   **R² no conjunto de Teste: 0.638**
-    *   O aviso de multicolinearidade desapareceu (Cond. No. caiu para `96.7`).
-    *   A variável `Quality_Score` se mostrou estatisticamente significativa (p=0.000).
+O processo iterativo e experimental nos levou a um modelo final robusto, parcimonioso e teoricamente coerente. O modelo é composto pelas variáveis do modelo base acrescidas da feature `Cast_Power`. Este modelo (R² ~0.64) representa a conclusão da nossa busca por uma representação da influência do elenco e diretores.
 
-*   **Análise e Decisão:** Embora o modelo tenha se tornado estatisticamente mais robusto, a análise revelou duas conclusões críticas:
-    1.  **Ausência de Ganho Preditivo:** Os valores de R² (`~0.64`) foram virtualmente idênticos aos do modelo sem essas variáveis. A inclusão delas não melhorou a capacidade de previsão do modelo.
-    2.  **Coeficiente Contraintuitivo:** A `Quality_Score` apresentou um coeficiente negativo. Isso ocorre porque, após controlar pelo efeito dominante do `Number_of_exhibition_rooms`, o modelo associa notas de qualidade muito altas a filmes de nicho/arte, que possuem bilheteria menor que blockbusters de nota "apenas" boa.
+A próxima fase da pesquisa pode explorar outras fontes de variabilidade, como o **gênero do filme**, para verificar se é possível incrementar ainda mais o poder preditivo do nosso já sólido modelo final.
 
-*   **Conclusão Final do Experimento:** Com base no **Princípio da Parcimônia**, a decisão correta é **não incluir `Runtime` e a `Quality_Score` no modelo final**. Elas adicionam complexidade e geram coeficientes de difícil interpretação sem fornecer um ganho real no poder preditivo. O modelo anterior, sem elas, é superior por ser mais simples e teoricamente mais coerente. 
+=== PLANO DE AÇÃO (ATUALIZAÇÃO PÓS-CORREÇÃO DA BASE DE DADOS) ===
+
+**Data da Atualização:** [Inserir Data]
+
+**Contexto:** O usuário identificou e corrigiu uma falha na base de dados final, que não continha as colunas `Genre_1` e `production_companies`. Esta correção é um passo fundamental para a robustez do modelo.
+
+**Impacto da Correção:**
+1.  **Metodologia Preservada:** Nossos aprendizados sobre os perigos do `TargetEncoder` e a importância da validação cruzada continuam válidos. A metodologia de teste de hipóteses em branches isoladas está correta.
+2.  **Resultados Defasados:** Os resultados numéricos (R²) de todos os experimentos anteriores (Baseline, Hipótese do Diretor, Hipótese do Elenco) estão defasados, pois foram calculados sobre uma base de dados incompleta.
+3.  **Necessidade de Recalibração:** Precisamos reestabelecer nossa linha de base (benchmark) e reavaliar as features de engenharia de variáveis (`Cast_Power`) com a base de dados correta.
+
+**Plano de Ação Futuro:**
+
+1.  **FASE 1: Estabelecer a Nova Linha de Base (feature/genre)**
+    *   **Objetivo:** Criar um novo modelo de referência (benchmark) robusto.
+    *   **Ação:** Modificar o script `linear_regressor.py` para incluir as variáveis `Genre_1` e `production_companies` no pré-processamento (provavelmente usando `OneHotEncoder`).
+    *   **Variáveis:** O modelo incluirá as features numéricas já validadas + `Genre_1` + `production_companies`.
+    *   **Resultado Esperado:** Um R² de treino e teste equilibrados, que servirá como nosso novo ponto de partida para comparação.
+
+2.  **FASE 2: Reavaliar a Hipótese `Cast_Power`**
+    *   **Objetivo:** Medir o ganho de performance real da feature `Cast_Power` sobre a nova e mais forte linha de base.
+    *   **Ação:** Em uma nova branch, reintroduzir a lógica da `Cast_Power` ao modelo da Fase 1.
+    *   **Resultado Esperado:** Comparar o R² do modelo (Fase 2) vs (Fase 1). Se houver um incremento significativo sem causar overfitting, a feature será considerada um sucesso e incorporada.
+
+3.  **FASE 3: Nova Hipótese - `Production_Company_Power`**
+    *   **Objetivo:** Testar se a popularidade/frequência da produtora pode melhorar o modelo.
+    *   **Ação:** Aplicar uma lógica de engenharia de features similar à `Cast_Power` para a coluna `production_companies`.
+    *   **Resultado Esperado:** Avaliar o impacto da nova feature `Production_Company_Power` no desempenho do modelo.
+
+Vamos focar na Fase 1.
+
+--- ANÁLISE DOS EXPERIMENTOS ---
+
+**Benchmark Inicial (Baseado em Hipótese Incorreta)**
+*   **Descrição:** Primeira versão estável do código, mas que ainda continha a variável `Director_1` sendo processada por `TargetEncoder`.
+*   **Resultados:** R² de Teste ~0.64.
+*   **Conclusão:** O resultado estava artificialmente inflado pelo vazamento de dados do `TargetEncoder` em uma variável de alta cardinalidade. Serviu para aprendermos a importância de usar `OneHotEncoder` para baselines.
+
+**Experimento 1: A Maldição da Dimensionalidade**
+*   **Descrição:** Inclusão de `Genre_1`, `Prodution_country` e `Production_Companies` via `OneHotEncoder`.
+*   **Resultados:** R² de Teste ~0.21.
+*   **Conclusão:** FALHA. A criação de centenas de colunas para países e produtoras com poucos dados destruiu a capacidade de generalização do modelo. Lição: variáveis categóricas de alta cardinalidade são perigosas e exigem tratamento especial.
+
+**Experimento 2: A Verdadeira Baseline (Teste de Ablação)**
+*   **Descrição:** Modelo apenas com as 3 variáveis numéricas mais fortes (`Days_in_exibithion`, `Number_of_exhibition_rooms`, `Belongs_to_collection`).
+*   **Resultados:** R² de Teste **0.611** | R² de Treino (CV) **0.619**.
+*   **Conclusão:** SUCESSO. Modelo extremamente estável, sem overfitting. Este é o nosso benchmark confiável.
+
+**Experimento 3: Adicionando Gênero**
+*   **Descrição:** Adição da variável `Genre_1` (baixa cardinalidade) ao modelo do Experimento 2.
+*   **Resultados:** R² de Teste **0.621** | R² de Treino (CV) **0.627**.
+*   **Conclusão:** SUCESSO. Houve um ganho de performance de 1 p.p. de forma estável. A hipótese de que o gênero adiciona poder preditivo foi validada. O modelo atual (Experimento 3) é nossa nova baseline.
+
+**Experimento 4: Adicionando "Poder do Elenco" (Cast_Power)**
+*   **Descrição:** Adição da feature `Cast_Power` (engenharia de variável baseada na frequência dos atores) ao modelo do Experimento 3.
+*   **Resultados:** R² de Teste **0.629** | R² de Treino (CV) **0.634**.
+*   **Conclusão:** SUCESSO. A feature `Cast_Power` se mostrou altamente significativa (p-valor = 0.000) e adicionou mais 1 p.p. de performance de forma estável. A hipótese foi validada. O modelo resultante deste experimento é o nosso benchmark final.
+
+### Experimento 5: Reavaliação de Variáveis Removidas (`Runtime` e Notas de Avaliação)
+*   **Objetivo:** Após a construção de um modelo base robusto, revisitamos a hipótese inicial de que as variáveis `Runtime`, `IMDB_Rating` e `Vote_Average` poderiam, de fato, contribuir para o modelo preditivo.
+*   **Metodologia:** As variáveis foram reintroduzidas, e para tratar a multicolinearidade observada entre `IMDB_Rating` e `Vote_Average`, elas foram combinadas em uma única feature `Quality_Score`.
+*   **Resultados Finais:** R² de Teste **0.638** | R² de Treino (CV) **0.645**.
+*   **Análise e Decisão:** Embora o modelo tenha se tornado estatisticamente mais robusto (sem multicolinearidade), os R² não mostraram ganho preditivo real. Além disso, a `Quality_Score` apresentou um coeficiente negativo, teoricamente contraintuitivo.
+*   **Conclusão Final do Experimento:** Com base no **Princípio da Parcimônia**, a decisão correta é **não incluir `Runtime` e a `Quality_Score` no modelo final**. Elas adicionam complexidade sem ganho preditivo.
+
+### Experimento 6: Teste da Hipótese da "Força da Produtora" (`Production_Company_Power`)
+*   **Objetivo:** Testar se a lógica de "tiering" por frequência, bem-sucedida para o elenco, se aplicaria às produtoras.
+*   **Metodologia:** Foi criada a variável `Production_Company_Power` usando o mesmo método de "tiering" por frequência no conjunto de treino.
+*   **Resultados:** R² de Teste **0.629** | R² de Treino (CV) **0.633** | P-valor da `Production_Company_Power`: **0.874**.
+*   **Análise e Decisão:** A nova feature se mostrou **estatisticamente não significativa** e **não houve incremento no R²**.
+*   **Conclusão Final do Experimento:** **A hipótese foi rejeitada.** A frequência da produtora não é um bom preditor de bilheteria neste modelo. O modelo do Experimento 4 permanece como o melhor.
+
+### 5. Modelo Final Aprimorado e Próximos Passos
+
+O processo iterativo e experimental nos levou a um modelo final robusto, parcimonioso e teoricamente coerente. O modelo é composto pelas variáveis do modelo base acrescidas da feature `Cast_Power`. Este modelo (R² ~0.64) representa a conclusão da nossa busca por uma representação da influência do elenco e diretores.
+
+A próxima fase da pesquisa pode explorar outras fontes de variabilidade, como o **gênero do filme**, para verificar se é possível incrementar ainda mais o poder preditivo do nosso já sólido modelo final.
+
+=== PLANO DE AÇÃO (ATUALIZAÇÃO PÓS-CORREÇÃO DA BASE DE DADOS) ===
+
+**Data da Atualização:** [Inserir Data]
+
+**Contexto:** O usuário identificou e corrigiu uma falha na base de dados final, que não continha as colunas `Genre_1` e `production_companies`. Esta correção é um passo fundamental para a robustez do modelo.
+
+**Impacto da Correção:**
+1.  **Metodologia Preservada:** Nossos aprendizados sobre os perigos do `TargetEncoder` e a importância da validação cruzada continuam válidos. A metodologia de teste de hipóteses em branches isoladas está correta.
+2.  **Resultados Defasados:** Os resultados numéricos (R²) de todos os experimentos anteriores (Baseline, Hipótese do Diretor, Hipótese do Elenco) estão defasados, pois foram calculados sobre uma base de dados incompleta.
+3.  **Necessidade de Recalibração:** Precisamos reestabelecer nossa linha de base (benchmark) e reavaliar as features de engenharia de variáveis (`Cast_Power`) com a base de dados correta.
+
+**Plano de Ação Futuro:**
+
+1.  **FASE 1: Estabelecer a Nova Linha de Base (feature/genre)**
+    *   **Objetivo:** Criar um novo modelo de referência (benchmark) robusto.
+    *   **Ação:** Modificar o script `linear_regressor.py` para incluir as variáveis `Genre_1` e `production_companies` no pré-processamento (provavelmente usando `OneHotEncoder`).
+    *   **Variáveis:** O modelo incluirá as features numéricas já validadas + `Genre_1` + `production_companies`.
+    *   **Resultado Esperado:** Um R² de treino e teste equilibrados, que servirá como nosso novo ponto de partida para comparação.
+
+2.  **FASE 2: Reavaliar a Hipótese `Cast_Power`**
+    *   **Objetivo:** Medir o ganho de performance real da feature `Cast_Power` sobre a nova e mais forte linha de base.
+    *   **Ação:** Em uma nova branch, reintroduzir a lógica da `Cast_Power` ao modelo da Fase 1.
+    *   **Resultado Esperado:** Comparar o R² do modelo (Fase 2) vs (Fase 1). Se houver um incremento significativo sem causar overfitting, a feature será considerada um sucesso e incorporada.
+
+3.  **FASE 3: Nova Hipótese - `Production_Company_Power`**
+    *   **Objetivo:** Testar se a popularidade/frequência da produtora pode melhorar o modelo.
+    *   **Ação:** Aplicar uma lógica de engenharia de features similar à `Cast_Power` para a coluna `production_companies`.
+    *   **Resultado Esperado:** Avaliar o impacto da nova feature `Production_Company_Power` no desempenho do modelo.
+
+Vamos focar na Fase 1.
+
+--- ANÁLISE DOS EXPERIMENTOS ---
+
+**Benchmark Inicial (Baseado em Hipótese Incorreta)**
+*   **Descrição:** Primeira versão estável do código, mas que ainda continha a variável `Director_1` sendo processada por `TargetEncoder`.
+*   **Resultados:** R² de Teste ~0.64.
+*   **Conclusão:** O resultado estava artificialmente inflado pelo vazamento de dados do `TargetEncoder` em uma variável de alta cardinalidade. Serviu para aprendermos a importância de usar `OneHotEncoder` para baselines.
+
+**Experimento 1: A Maldição da Dimensionalidade**
+*   **Descrição:** Inclusão de `Genre_1`, `Prodution_country` e `Production_Companies` via `OneHotEncoder`.
+*   **Resultados:** R² de Teste ~0.21.
+*   **Conclusão:** FALHA. A criação de centenas de colunas para países e produtoras com poucos dados destruiu a capacidade de generalização do modelo. Lição: variáveis categóricas de alta cardinalidade são perigosas e exigem tratamento especial.
+
+**Experimento 2: A Verdadeira Baseline (Teste de Ablação)**
+*   **Descrição:** Modelo apenas com as 3 variáveis numéricas mais fortes (`Days_in_exibithion`, `Number_of_exhibition_rooms`, `Belongs_to_collection`).
+*   **Resultados:** R² de Teste **0.611** | R² de Treino (CV) **0.619**.
+*   **Conclusão:** SUCESSO. Modelo extremamente estável, sem overfitting. Este é o nosso benchmark confiável.
+
+**Experimento 3: Adicionando Gênero**
+*   **Descrição:** Adição da variável `Genre_1` (baixa cardinalidade) ao modelo do Experimento 2.
+*   **Resultados:** R² de Teste **0.621** | R² de Treino (CV) **0.627**.
+*   **Conclusão:** SUCESSO. Houve um ganho de performance de 1 p.p. de forma estável. A hipótese de que o gênero adiciona poder preditivo foi validada. O modelo atual (Experimento 3) é nossa nova baseline.
+
+**Experimento 4: Adicionando "Poder do Elenco" (Cast_Power)**
+*   **Descrição:** Adição da feature `Cast_Power` (engenharia de variável baseada na frequência dos atores) ao modelo do Experimento 3.
+*   **Resultados:** R² de Teste **0.629** | R² de Treino (CV) **0.634**.
+*   **Conclusão:** SUCESSO. A feature `Cast_Power` se mostrou altamente significativa (p-valor = 0.000) e adicionou mais 1 p.p. de performance de forma estável. A hipótese foi validada. O modelo resultante deste experimento é o nosso benchmark final.
+
+### Experimento 5: Reavaliação de Variáveis Removidas (`Runtime` e Notas de Avaliação)
+*   **Objetivo:** Após a construção de um modelo base robusto, revisitamos a hipótese inicial de que as variáveis `Runtime`, `IMDB_Rating` e `Vote_Average` poderiam, de fato, contribuir para o modelo preditivo.
+*   **Metodologia:** As variáveis foram reintroduzidas, e para tratar a multicolinearidade observada entre `IMDB_Rating` e `Vote_Average`, elas foram combinadas em uma única feature `Quality_Score`.
+*   **Resultados Finais:** R² de Teste **0.638** | R² de Treino (CV) **0.645**.
+*   **Análise e Decisão:** Embora o modelo tenha se tornado estatisticamente mais robusto (sem multicolinearidade), os R² não mostraram ganho preditivo real. Além disso, a `Quality_Score` apresentou um coeficiente negativo, teoricamente contraintuitivo.
+*   **Conclusão Final do Experimento:** Com base no **Princípio da Parcimônia**, a decisão correta é **não incluir `Runtime` e a `Quality_Score` no modelo final**. Elas adicionam complexidade sem ganho preditivo.
+
+### Experimento 6: Teste da Hipótese da "Força da Produtora" (`Production_Company_Power`)
+*   **Objetivo:** Testar se a lógica de "tiering" por frequência, bem-sucedida para o elenco, se aplicaria às produtoras.
+*   **Metodologia:** Foi criada a variável `Production_Company_Power` usando o mesmo método de "tiering" por frequência no conjunto de treino.
+*   **Resultados:** R² de Teste **0.629** | R² de Treino (CV) **0.633** | P-valor da `Production_Company_Power`: **0.874**.
+*   **Análise e Decisão:** A nova feature se mostrou **estatisticamente não significativa** e **não houve incremento no R²**.
+*   **Conclusão Final do Experimento:** **A hipótese foi rejeitada.** A frequência da produtora não é um bom preditor de bilheteria neste modelo. O modelo do Experimento 4 permanece como o melhor.
+
+### 5. Modelo Final Aprimorado e Próximos Passos
+
+O processo iterativo e experimental nos levou a um modelo final robusto, parcimonioso e teoricamente coerente. O modelo é composto pelas variáveis do modelo base acrescidas da feature `Cast_Power`. Este modelo (R² ~0.64) representa a conclusão da nossa busca por uma representação da influência do elenco e diretores.
+
+A próxima fase da pesquisa pode explorar outras fontes de variabilidade, como o **gênero do filme**, para verificar se é possível incrementar ainda mais o poder preditivo do nosso já sólido modelo final.
+
+=== PLANO DE AÇÃO (ATUALIZAÇÃO PÓS-CORREÇÃO DA BASE DE DADOS) ===
+
+**Data da Atualização:** [Inserir Data]
+
+**Contexto:** O usuário identificou e corrigiu uma falha na base de dados final, que não continha as colunas `Genre_1` e `production_companies`. Esta correção é um passo fundamental para a robustez do modelo.
+
+**Impacto da Correção:**
+1.  **Metodologia Preservada:** Nossos aprendizados sobre os perigos do `TargetEncoder` e a importância da validação cruzada continuam válidos. A metodologia de teste de hipóteses em branches isoladas está correta.
+2.  **Resultados Defasados:** Os resultados numéricos (R²) de todos os experimentos anteriores (Baseline, Hipótese do Diretor, Hipótese do Elenco) estão defasados, pois foram calculados sobre uma base de dados incompleta.
+3.  **Necessidade de Recalibração:** Precisamos reestabelecer nossa linha de base (benchmark) e reavaliar as features de engenharia de variáveis (`Cast_Power`) com a base de dados correta.
+
+**Plano de Ação Futuro:**
+
+1.  **FASE 1: Estabelecer a Nova Linha de Base (feature/genre)**
+    *   **Objetivo:** Criar um novo modelo de referência (benchmark) robusto.
+    *   **Ação:** Modificar o script `linear_regressor.py` para incluir as variáveis `Genre_1` e `production_companies` no pré-processamento (provavelmente usando `OneHotEncoder`).
+    *   **Variáveis:** O modelo incluirá as features numéricas já validadas + `Genre_1` + `production_companies`.
+    *   **Resultado Esperado:** Um R² de treino e teste equilibrados, que servirá como nosso novo ponto de partida para comparação.
+
+2.  **FASE 2: Reavaliar a Hipótese `Cast_Power`**
+    *   **Objetivo:** Medir o ganho de performance real da feature `Cast_Power` sobre a nova e mais forte linha de base.
+    *   **Ação:** Em uma nova branch, reintroduzir a lógica da `Cast_Power` ao modelo da Fase 1.
+    *   **Resultado Esperado:** Comparar o R² do modelo (Fase 2) vs (Fase 1). Se houver um incremento significativo sem causar overfitting, a feature será considerada um sucesso e incorporada.
+
+3.  **FASE 3: Nova Hipótese - `Production_Company_Power`**
+    *   **Objetivo:** Testar se a popularidade/frequência da produtora pode melhorar o modelo.
+    *   **Ação:** Aplicar uma lógica de engenharia de features similar à `Cast_Power` para a coluna `production_companies`.
+    *   **Resultado Esperado:** Avaliar o impacto da nova feature `Production_Company_Power` no desempenho do modelo.
+
+Vamos focar na Fase 1.
+
+--- ANÁLISE DOS EXPERIMENTOS ---
+
+**Benchmark Inicial (Baseado em Hipótese Incorreta)**
+*   **Descrição:** Primeira versão estável do código, mas que ainda continha a variável `Director_1` sendo processada por `TargetEncoder`.
+*   **Resultados:** R² de Teste ~0.64.
+*   **Conclusão:** O resultado estava artificialmente inflado pelo vazamento de dados do `TargetEncoder` em uma variável de alta cardinalidade. Serviu para aprendermos a importância de usar `OneHotEncoder` para baselines.
+
+**Experimento 1: A Maldição da Dimensionalidade**
+*   **Descrição:** Inclusão de `Genre_1`, `Prodution_country` e `Production_Companies` via `OneHotEncoder`.
+*   **Resultados:** R² de Teste ~0.21.
+*   **Conclusão:** FALHA. A criação de centenas de colunas para países e produtoras com poucos dados destruiu a capacidade de generalização do modelo. Lição: variáveis categóricas de alta cardinalidade são perigosas e exigem tratamento especial.
+
+**Experimento 2: A Verdadeira Baseline (Teste de Ablação)**
+*   **Descrição:** Modelo apenas com as 3 variáveis numéricas mais fortes (`Days_in_exibithion`, `Number_of_exhibition_rooms`, `Belongs_to_collection`).
+*   **Resultados:** R² de Teste **0.611** | R² de Treino (CV) **0.619**.
+*   **Conclusão:** SUCESSO. Modelo extremamente estável, sem overfitting. Este é o nosso benchmark confiável.
+
+**Experimento 3: Adicionando Gênero**
+*   **Descrição:** Adição da variável `Genre_1` (baixa cardinalidade) ao modelo do Experimento 2.
+*   **Resultados:** R² de Teste **0.621** | R² de Treino (CV) **0.627**.
+*   **Conclusão:** SUCESSO. Houve um ganho de performance de 1 p.p. de forma estável. A hipótese de que o gênero adiciona poder preditivo foi validada. O modelo atual (Experimento 3) é nossa nova baseline.
+
+**Experimento 4: Adicionando "Poder do Elenco" (Cast_Power)**
+*   **Descrição:** Adição da feature `Cast_Power` (engenharia de variável baseada na frequência dos atores) ao modelo do Experimento 3.
+*   **Resultados:** R² de Teste **0.629** | R² de Treino (CV) **0.634**.
+*   **Conclusão:** SUCESSO. A feature `Cast_Power` se mostrou altamente significativa (p-valor = 0.000) e adicionou mais 1 p.p. de performance de forma estável. A hipótese foi validada. O modelo resultante deste experimento é o nosso benchmark final.
+
+### Experimento 5: Reavaliação de Variáveis Removidas (`Runtime` e Notas de Avaliação)
+*   **Objetivo:** Após a construção de um modelo base robusto, revisitamos a hipótese inicial de que as variáveis `Runtime`, `IMDB_Rating` e `Vote_Average` poderiam, de fato, contribuir para o modelo preditivo.
+*   **Metodologia:** As variáveis foram reintroduzidas, e para tratar a multicolinearidade observada entre `IMDB_Rating` e `Vote_Average`, elas foram combinadas em uma única feature `Quality_Score`.
+*   **Resultados Finais:** R² de Teste **0.638** | R² de Treino (CV) **0.645**.
+*   **Análise e Decisão:** Embora o modelo tenha se tornado estatisticamente mais robusto (sem multicolinearidade), os R² não mostraram ganho preditivo real. Além disso, a `Quality_Score` apresentou um coeficiente negativo, teoricamente contraintuitivo.
+*   **Conclusão Final do Experimento:** Com base no **Princípio da Parcimônia**, a decisão correta é **não incluir `Runtime` e a `Quality_Score` no modelo final**. Elas adicionam complexidade sem ganho preditivo.
+
+### Experimento 6: Teste da Hipótese da "Força da Produtora" (`Production_Company_Power`)
+*   **Objetivo:** Testar se a lógica de "tiering" por frequência, bem-sucedida para o elenco, se aplicaria às produtoras.
+*   **Metodologia:** Foi criada a variável `Production_Company_Power` usando o mesmo método de "tiering" por frequência no conjunto de treino.
+*   **Resultados:** R² de Teste **0.629** | R² de Treino (CV) **0.633** | P-valor da `Production_Company_Power`: **0.874**.
+*   **Análise e Decisão:** A nova feature se mostrou **estatisticamente não significativa** e **não houve incremento no R²**.
+*   **Conclusão Final do Experimento:** **A hipótese foi rejeitada.** A frequência da produtora não é um bom preditor de bilheteria neste modelo. O modelo do Experimento 4 permanece como o melhor.
+
+### 5. Modelo Final Aprimorado e Próximos Passos
+
+O processo iterativo e experimental nos levou a um modelo final robusto, parcimonioso e teoricamente coerente. O modelo é composto pelas variáveis do modelo base acrescidas da feature `Cast_Power`. Este modelo (R² ~0.64) representa a conclusão da nossa busca por uma representação da influência do elenco e diretores.
+
+A próxima fase da pesquisa pode explorar outras fontes de variabilidade, como o **gênero do filme**, para verificar se é possível incrementar ainda mais o poder preditivo do nosso já sólido modelo final. 

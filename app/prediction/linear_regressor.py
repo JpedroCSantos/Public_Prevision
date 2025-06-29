@@ -28,6 +28,7 @@ def runLinearRegressor(df: pd.DataFrame):
     vars_to_drop = [
         'Runtime', 'Vote_Average', 'IMDB_Rating', 'Month', 'Day_of_Week_sin',
         'Director_1', 'Release_Date', 'budget',
+        'Production_Companies',
         # Removendo temporariamente para teste de ablação (isolar impacto)
         'Prodution_country'
     ]
