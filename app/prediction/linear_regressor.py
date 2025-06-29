@@ -103,9 +103,37 @@ def runLinearRegressor(df: pd.DataFrame):
         X_test = X_test.drop(columns=cols_to_drop_post_feature_eng)
         print("Feature 'Cast_Power' criada e colunas originais de elenco removidas.")
 
+    # 4. Engenharia de Features: Níveis de Produtora (Pós-Split)
+    print("Iniciando engenharia de features: Níveis de Produtora (Production_Company_Power)...")
+    if 'Production_Companies' in X_train.columns:
+        # Contar a frequência de cada produtora APENAS no conjunto de treino
+        company_counts = X_train['Production_Companies'].value_counts()
+        
+        # Definir os limiares para os tiers (quantis)
+        q1_comp = company_counts.quantile(0.66)
+        q2_comp = company_counts.quantile(0.95)
+        
+        def get_company_tier(company, counts, q1, q2):
+            count = counts.get(company, 0)
+            if count > q2:
+                return 3 # Tier 1 (Major Studio)
+            elif count > q1:
+                return 2 # Tier 2 (Regular)
+            else:
+                return 1 # Tier 3 (Indie/Other)
+
+        # Criar a feature de "força da produtora"
+        X_train['Production_Company_Power'] = X_train['Production_Companies'].apply(lambda x: get_company_tier(x, company_counts, q1_comp, q2_comp))
+        X_test['Production_Company_Power'] = X_test['Production_Companies'].apply(lambda x: get_company_tier(x, company_counts, q1_comp, q2_comp))
+
+        # Remover a coluna original
+        X_train = X_train.drop(columns=['Production_Companies'])
+        X_test = X_test.drop(columns=['Production_Companies'])
+        print("Feature 'Production_Company_Power' criada e coluna original de produtora removida.")
+
     print(f"Dados divididos em treino ({X_train.shape[0]} amostras) e teste ({X_test.shape[0]} amostras).")
 
-    # 4. Pipeline de Pré-processamento
+    # 5. Pipeline de Pré-processamento
     # Definindo as colunas numéricas e categóricas
     numeric_features = X_train.select_dtypes(include=np.number).columns.tolist()
     categorical_features = X_train.select_dtypes(include=['object', 'category']).columns.tolist()
@@ -124,7 +152,7 @@ def runLinearRegressor(df: pd.DataFrame):
         remainder='passthrough'
     )
     
-    # 5. Treinamento e Avaliação do Modelo
+    # 6. Treinamento e Avaliação do Modelo
     # Usaremos um pipeline para encadear o pré-processamento e o modelo
     model_pipeline = Pipeline(steps=[('preprocessor', preprocessor),
                                      ('regressor', LinearRegression())])
@@ -133,7 +161,7 @@ def runLinearRegressor(df: pd.DataFrame):
     model_pipeline.fit(X_train, y_train)
     print("Pipeline de pré-processamento e treinamento concluído.")
     
-    # 6. Análise Inferencial com Statsmodels (após o treino do pipeline)
+    # 7. Análise Inferencial com Statsmodels (após o treino do pipeline)
     print("\n--- Análise Inferencial do Modelo (Statsmodels) ---")
     try:
         # Extrair os nomes das features do pipeline
@@ -158,7 +186,7 @@ def runLinearRegressor(df: pd.DataFrame):
     except Exception as e:
         print(f"Não foi possível gerar o sumário do Statsmodels: {e}")
 
-    # 7. Avaliação do Modelo no Conjunto de Teste
+    # 8. Avaliação do Modelo no Conjunto de Teste
     y_pred = model_pipeline.predict(X_test)
     
     # Validação Cruzada para uma avaliação mais robusta do R² no treino
@@ -173,7 +201,7 @@ def runLinearRegressor(df: pd.DataFrame):
     print(f"🔹 Cross-Validation R² Scores (no treino): {cv_scores}")
     print(f"🔹 Média dos R² (CV no treino): {np.mean(cv_scores):.3f}")
 
-    # 8. Diagnóstico de Resíduos
+    # 9. Diagnóstico de Resíduos
     # Hair (2009) enfatiza a importância de analisar os resíduos para validar as premissas da regressão.
     residuals = y_test - y_pred
     fig, axes = plt.subplots(1, 2, figsize=(15, 6))
