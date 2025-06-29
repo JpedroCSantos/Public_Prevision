@@ -5,9 +5,8 @@ project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(project_root)
 
 import json
-import re
 from datetime import datetime
-from typing import Dict, List, Union
+from typing import Dict, List, Any, Optional
 from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 import time
 
@@ -24,212 +23,132 @@ class OMDBMovieAPI(MovieAPI):
         self.current_key_index = 0  
         self.request_count = 0
 
-    def get_current_key(self):
-        """Retorna a chave da API atual com base no contador de requisições."""
+    def get_current_key(self) -> Optional[str]:
+        """Retorna a chave da API atual ou None se não houver chaves."""
+        if not self.api_keys:
+            return None
         return self.api_keys[self.current_key_index]
 
     def switch_key(self):
-        """Troca para a próxima chave após 1000 requisições."""
-        self.request_count = 0
-        self.current_key_index = (self.current_key_index + 1) % len(self.api_keys)        
+        """Troca para a próxima chave da API."""
+        if len(self.api_keys) > 1:
+            self.current_key_index = (self.current_key_index + 1) % len(self.api_keys)        
 
-    def search_movie(self, row: Dict, data_cache: Dict = None) -> json:
+    def search_movie(self, row: Dict[str, Any], data_cache: Optional[Dict[str, Any]] = None) -> Optional[OmdbSchema]:
         """
-        Função buscar os dados básicos de um filme de acordo com o parâmetro
-        query (EX: Titulo do filme)
-
-        args: Row: Linha do dataframe com as informações para serem utilizadas
-              na busca
-
-        return: json
+        Busca os dados de um filme usando seu IMDB ID.
         """
-        imdb_id = row["imdb_id"] if row["imdb_id"] is not None and pd.notna(row["imdb_id"]) else None
-        BASE_URL: str = f"http://www.omdbapi.com/?apikey={self.get_current_key()}&"
+        imdb_id = row.get("imdb_id")
+        api_key = self.get_current_key()
+
+        if not imdb_id or pd.isna(imdb_id) or not api_key:
+            return None
+
+        BASE_URL = f"http://www.omdbapi.com/?apikey={api_key}&"
         params = {"i": imdb_id, "type": "movie"}
 
         try:
             response = requests.get(BASE_URL, params=params)
+            response.raise_for_status()  # Lança exceção para status de erro HTTP
             data = response.json()
 
-            if response.status_code == 200 and 'Response' in data and data['Response'] == "True":
+            if data.get('Response') == "True":
                 self.request_count += 1
-                # Troca de chave após 1000 requisições
-                if self.request_count >= 1000:
+                if self.request_count >= 999:  # Troca antes de atingir o limite
                     self.switch_key()
                 return self.build_object(data)
-            else:
-                return None
-        except:
+            return None
+        except requests.exceptions.RequestException as e:
+            print(f"Erro de requisição ao consultar o OMDB: {e}")
             return None
 
-    def build_object(self, api_response: json) -> OmdbSchema:
+    def build_object(self, api_response: Dict[str, Any]) -> Optional[OmdbSchema]:
         """
-        Função para transformar o retorno da api em um objeto do tipo OmdbSchema
-
-        args: api_response(json): Json com o retorno da AOU e informações a serem
-                                  transformadas em um objeto do tipo OmdbSchema
-
-        return: OmdbSchema
+        Transforma a resposta da API em um objeto OmdbSchema.
         """
         row_list = self.get_api_dict()
-        for key, value in api_response.items():
-            if key in row_list:
-                if value is not None:
-                    row_value = row_list[key]
-                    if "filter" in row_value:
-                        filter_code = row_value["filter"]
-                        api_response[key] = eval(filter_code)
-                    else:
-                        api_response[key] = value
-                else:
-                    return None
+        processed_data = {}
 
-        return OmdbSchema(
-            imdbRating=api_response["imdbRating"],
-            Metascore=api_response["Metascore"],
-            Director=api_response["Director"],
-            Actors=api_response["Actors"],
-            Rated=api_response["Rated"],
-        )
+        for api_key, config in row_list.items():
+            value = api_response.get(api_key)
+            target_key = config["row"]
+            
+            if "filter" in config and value is not None:
+                try:
+                    processed_data[target_key] = eval(config["filter"], {"value": value})
+                except (ValueError, TypeError):
+                    processed_data[target_key] = None
+            else:
+                processed_data[target_key] = value if value not in ["N/A", "NaN"] else None
+        
+        try:
+            return OmdbSchema(
+                imdbRating=processed_data.get("IMDB_Rating"),
+                Metascore=processed_data.get("Metascore"),
+                Director=processed_data.get("Director"),
+                Actors=processed_data.get("Cast"),
+                Rated=processed_data.get("Rated"),
+            )
+        except Exception as e:
+            print(f"Erro ao criar o objeto OmdbSchema para a resposta: {api_response}. Erro: {e}")
+            return None
 
     def get_api_dict(self):
         return {
             "Actors": {
                 "row": "Cast",
-                "filter": "value if value and value != 'N/A' and value != 'NaN' and value != 'nan' else None"
             },
             "Director": {
                 "row": "Director",
-                "filter": "value if value and value != 'N/A' and value != 'NaN' else None"
             },
             "imdbRating": {
                 "row": "IMDB_Rating",
-                "filter": 'float(value.replace(".", "")) if value and value != "N/A" else None',
+                "filter": 'float(value) if value and value not in ["N/A", "NaN"] else None',
             },
             "Metascore": {
                 "row": "Metascore",
-                "filter": '(float(value.replace(".", "")) / 10) if (value and value != "N/A" and float(value.replace(",", "")) > 100) else (float(value.replace(",", "")) if (value and value != "N/A") else None)',
+                "filter": 'float(value) if value and value not in ["N/A", "NaN"] else None',
             },
             "Rated": {
                 "row": "Rated",
             },
         }
-    
-# class OMDBMovieAPI(MovieAPI):
-#     def __init__(self, api_key: str):
-#         self.api_key = api_key
-
-#     def search_movie(self, row: Dict, data_cache: Dict = None) -> json:
-#         """
-#         Função buscar os dados básicos de um filme de acordo com o parâmetro
-#         query (EX: Titulo do filme)
-
-#         args: Row: Linha do dataframe com as informações para serem utilizadas
-#               na busca
-
-#         return: json
-#         """
-#         # title = row["Title"] if row["Title"] is not None and pd.notna(row["Title"]) else None
-#         # release_date = pd.to_datetime(row["release_date"], format="%d/%m/%Y %H:%M", errors='coerce')
-#         # year = release_date.year if pd.notna(release_date) else None
-#         # if not title or not year: 
-#         #     return None
-#         # params = {"t": title, "type": "movie"}
-
-#         # if year:
-#         #     params["y"] = year
-#         imdb_id = row["imdb_id"] if row["imdb_id"] is not None and pd.notna(row["imdb_id"]) else None
-#         BASE_URL: str = f"http://www.omdbapi.com/?apikey={self.api_key}&"
-#         params = {"i": imdb_id, "type": "movie"}
-
-#         try:
-#             response = requests.get(BASE_URL, params=params)
-#             data = response.json()
-#             with open("OMDB_response.json", "w") as f:
-#                     json.dump(data, f)
-#             if response.status_code == 200 and 'Response' in data and data['Response'] == "True":
-#                 return self.build_object(data)
-#             else:
-#                 return None
-#         except:
-#             return None
-
-#     def build_object(self, api_response: json) -> OmdbSchema:
-#         """
-#         Função para transformar o retorno da api em um objeto do tipo OmdbSchema
-
-#         args: api_response(json): Json com o retorno da AOU e informações a serem
-#                                   transformadas em um objeto do tipo OmdbSchema
-
-#         return: OmdbSchema
-#         """
-#         row_list = self.get_api_dict()
-#         for key, value in api_response.items():
-#             if key in row_list:
-#                 if value is not None:
-#                     row_value = row_list[key]
-#                     if "filter" in row_value:
-#                         filter_code = row_value["filter"]
-#                         api_response[key] = eval(filter_code)
-#                     else:
-#                         api_response[key] = value
-#                 else:
-#                     return None
-
-#         return OmdbSchema(
-#             imdbRating=api_response["imdbRating"],
-#             Metascore=api_response["Metascore"],
-#             Director=api_response["Director"],
-#             Actors=api_response["Actors"],
-#             Rated=api_response["Rated"],
-#         )
-
-#     def get_api_dict(self):
-#         return {
-#             "Actors": {
-#                 "row": "Cast",
-#                 "filter": "value if value and value != 'N/A' and value != 'NaN' and value != 'nan' else None"
-#             },
-#             "Director": {
-#                 "row": "Director",
-#                 "filter": "value if value and value != 'N/A' and value != 'NaN' else None"
-#             },
-#             "imdbRating": {
-#                 "row": "IMDB_Rating",
-#                 "filter": 'float(value.replace(".", "")) if value and value != "N/A" else None',
-#             },
-#             "Metascore": {
-#                 "row": "Metascore",
-#                 "filter": '(float(value.replace(".", "")) / 10) if (value and value != "N/A" and float(value.replace(",", "")) > 100) else (float(value.replace(",", "")) if (value and value != "N/A") else None)',
-#             },
-#             "Rated": {
-#                 "row": "Rated",
-#             },
-#         }
 
 if __name__ == "__main__":
     import os
     import sys
+    import pandas as pd
     from dotenv import load_dotenv
-    from pipeline.extract import (
-        read_data_csv,
-        exists_database,
-        read_dataframe
-    )
+    from pipeline.extract import read_dataframe
+
     project_root = 'C:/Users/JPedr/OneDrive/Documentos/TCC/Previsao_Espectadores'
     sys.path.append(project_root)
     load_dotenv(dotenv_path="env/.env")
 
-    DATA_PATH       = "data/output"
-    FINAL_PATH      = f"{DATA_PATH}/DATAS/ANALISYS_DATABASE"
-    FINAL_FILE_NAME = "COMPLETE_DATABASE_FOR_ANALYSIS"
+    DATA_PATH = "data/output"
+    DB_PATH = f"{DATA_PATH}/DATAS/ANALISYS_DATABASE"
+    FILE_NAME = "PUBLIC_ANALISYS_DATABASE"
     
-    api_key = os.getenv("OMDB_KEY")
-    omdb_api = OMDBMovieAPI(api_key)
+    api_key_premium = os.getenv("OMDB_KEY_PREMIUM")
+    
+    if not api_key_premium:
+        print("Chave da API OMDB Premium não encontrada. Verifique o arquivo .env")
+    else:
+        omdb_api = OMDBMovieAPI([api_key_premium])
+        try:
+            df = read_dataframe(DB_PATH, FILE_NAME)
+            
+            # Seleciona um intervalo de linhas para teste (ex: 5 linhas a partir da linha 10)
+            df_test = df.iloc[3630:].copy()
+            
+            print(f"Executando teste com {len(df_test)} linhas do DataFrame.")
+            print(df_test[['Title', 'imdb_id']].to_string())
 
-    df = read_dataframe(FINAL_PATH, FINAL_FILE_NAME)
-    df = df.head(5)
-    for index, row in df.iterrows():
-        # print(f"Linha {index}: {row.to_dict()}")
-        response = omdb_api.search_movie(row)
-        print(f"Resposta da API: {response}")
+            for index, row in df_test.iterrows():
+                print(f"--- Consultando filme: {row['Title']} (IMDB: {row['imdb_id']}) ---")
+                response = omdb_api.search_movie(row.to_dict())
+                print(f"Resposta da API: {response}")
+        except FileNotFoundError:
+            print(f"Arquivo de teste não encontrado em: {DB_PATH}/{FILE_NAME}.parquet")
+        except Exception as e:
+            print(f"Ocorreu um erro durante o teste: {e}")

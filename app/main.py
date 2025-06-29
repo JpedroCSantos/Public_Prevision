@@ -1,6 +1,5 @@
 import os
 import pandas as pd
-import json
 
 from api.consult import complete_df
 from api.consult_omdb import OMDBMovieAPI
@@ -34,10 +33,11 @@ def readDataframe() -> pd.DataFrame:
 def build_apis_objects():
     apis = []
     apis.append(TMDBMovieAPI(os.getenv("TMDB_KEY")))
+    apis.append(OMDBMovieAPI([os.getenv("OMDB_KEY_PREMIUM")]))
     
     # Carregar todas as chaves OMDB a partir do arquivo .env
-    omdb_keys = [os.getenv(f"OMDB_KEY_{i}") for i in range(1, 9)]
-    apis.append(OMDBMovieAPI(omdb_keys))
+    # omdb_keys = [os.getenv(f"OMDB_KEY_{i}") for i in range(1, 10)]
+    # apis.append(OMDBMovieAPI(omdb_keys))
     
     return apis
 
@@ -72,8 +72,8 @@ if UPDATE_DATAFRAME["NEW_DATAFRAME"]:
 
     print("Limpando Dataframe")
     COLUNS_TO_DROP = ['REGISTRO_GRUPO_EXIBIDOR', 'REGISTRO_EXIBIDOR', 'REGISTRO_COMPLEXO', 
-                    'NOME_SALA', 'REGISTRO_SALA', 'MUNICIPIO_SALA_COMPLEXO', 
-                    'RAZAO_SOCIAL_EXIBIDORA', 'CNPJ_EXIBIDORA']
+                    'NOME_SALA', 'MUNICIPIO_SALA_COMPLEXO',  'RAZAO_SOCIAL_EXIBIDORA', 
+                    'CNPJ_EXIBIDORA']
     df = remove_coluns(df, COLUNS_TO_DROP)
     load_files(df, f"{DATA_PATH}/DATAS/FILTER_DATABASE", "FILTER_FULL_DATABASE")
     
@@ -81,8 +81,7 @@ if UPDATE_DATAFRAME["NEW_DATAFRAME"]:
     df = pd.read_parquet(DF_FILE)
 
     print("Limpando Dataframe para realizar as Analises")
-    COLUNS_TO_DROP = ['AUDIO', 'SESSAO', 'AUDIO', 'LEGENDADA', 
-                    'UF_SALA_COMPLEXO', 'TITULO_BRASIL']
+    COLUNS_TO_DROP = ['AUDIO', 'SESSAO', 'AUDIO', 'LEGENDADA', 'UF_SALA_COMPLEXO']
     df = remove_coluns(df, COLUNS_TO_DROP)
     df = transform_dataframe(df)
     load_files(df, f"{DATA_PATH}/DATAS/ANALISYS_DATABASE", 'PUBLIC_ANALISYS_DATABASE')
@@ -114,12 +113,14 @@ if UPDATE_DATAFRAME["COMPLETE_DATAFRAME"]["FILTER_DATAFRAME"]:
     del df
 
 if any(EXECUTE_PREVISION.values()):
+    DF_FILE = FINAL_PATH + "/" + FINAL_FILE_NAME + ".parquet"
+    df = pd.read_parquet(DF_FILE)
+    print("Executando modelos de previsão...")
+
     if EXECUTE_PREVISION["LINEAR_REGRESSOR"]:
-        DF_FILE = FINAL_PATH + "/" +FINAL_FILE_NAME + ".parquet"
-        df = pd.read_parquet(DF_FILE)
+        print("--- Regressão Linear ---")
         runLinearRegressor(df)
 
     if EXECUTE_PREVISION["RANDON_FOREST"]:
-        DF_FILE = FINAL_PATH + "/" +FINAL_FILE_NAME + ".parquet"
-        df = pd.read_parquet(DF_FILE)
+        print("--- Random Forest ---")
         random_forest_model(df)

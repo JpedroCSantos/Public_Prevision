@@ -9,18 +9,19 @@ from typing import Optional
 from datetime import datetime
 
 class TmdbSchema(ApiSchema):
-    budget: float
-    runtime: int
+    budget: Optional[float]
+    runtime: Optional[int]
     # revenue: float
-    release_date: datetime
-    vote_average: float
-    vote_count: int
-    id: int
-    imdb_id: str
+    release_date: Optional[datetime]
+    vote_average: Optional[float]
+    vote_count: Optional[int]
+    id: Optional[int]
+    imdb_id: Optional[str]
     # original_language: str
-    Genre_1: str
+    Genre_1: Optional[str]
     Genre_2: Optional[str]
     Genre_3: Optional[str]
-    popularity: float
+    popularity: Optional[float]
     Production_Companies: Optional[str]
-    Title: str
+    Title: Optional[str]
+    belongs_to_collection: Optional[int]
