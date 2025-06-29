@@ -19,15 +19,23 @@ def runLinearRegressor(df: pd.DataFrame):
     # 1. Carregamento e Limpeza Inicial dos Dados
     df = df.dropna().drop_duplicates()
     df = df.drop(['Title'], axis=1, errors='ignore')
-    df = df.drop(['budget'], axis=1, errors='ignore')
     print(f"Formato após limpeza inicial (dropna, drop_duplicates): {df.shape}")
+
+    # ===== PLANO DE AÇÃO (ITERAÇÃO 2) =====
+    # Remoção de variáveis não significativas e das que causam overfitting para criar um modelo base.
+    vars_to_drop = [
+        'Runtime', 'Vote_Average', 'IMDB_Rating', 'Month', 'Day_of_Week_sin',
+        'Cast_1', 'Cast_2', 'Cast_3', 'Director_1', 'budget'
+    ]
+    df = df.drop(columns=vars_to_drop, errors='ignore')
+    print(f"Variáveis removidas para o modelo base. Novo formato: {df.shape}")
+    print(f"Variáveis mantidas: {list(df.columns)}")
+    # =======================================
 
     # 2. Pré-processamento e Feature Engineering
     # Converte a data de lançamento, extrai features e remove a coluna original
     df['Release_Date'] = pd.to_datetime(df['Release_Date'], errors='coerce')
     df = df.dropna(subset=['Release_Date'])
-    df['Month'] = df['Release_Date'].dt.month
-    df['Day_of_Week_sin'] = np.sin(2 * np.pi * df['Release_Date'].dt.dayofweek / 7)
     df = df.drop(['Release_Date'], axis=1)
 
     # Transformação logarítmica da variável alvo para normalizar a distribuição e reduzir o impacto de outliers
