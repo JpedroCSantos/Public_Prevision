@@ -25,7 +25,7 @@ def runLinearRegressor(df: pd.DataFrame):
     # Remoção de variáveis não significativas e das que causam overfitting para criar um modelo base.
     vars_to_drop = [
         'Runtime', 'Vote_Average', 'IMDB_Rating', 'Month', 'Day_of_Week_sin',
-        'Cast_1', 'Cast_2', 'Cast_3', 'Director_1', 'budget'
+        'Cast_1', 'Cast_2', 'Cast_3', # 'Director_1' é mantido temporariamente
     ]
     df = df.drop(columns=vars_to_drop, errors='ignore')
     print(f"Variáveis removidas para o modelo base. Novo formato: {df.shape}")
@@ -52,6 +52,18 @@ def runLinearRegressor(df: pd.DataFrame):
     X_train = pd.DataFrame(X_train, columns=X.columns)
     X_test = pd.DataFrame(X_test, columns=X.columns)
     
+    # Engenharia de Features: Popularidade do Diretor (Pós-Split)
+    print("Iniciando engenharia de features: Popularidade do Diretor...")
+    director_popularity = pd.concat([X_train, y_train], axis=1).groupby('Director_1')['Public_Total'].mean()
+    global_mean_popularity = y_train.mean()
+    
+    X_train.loc[:, 'Director_Popularity'] = X_train['Director_1'].map(director_popularity).fillna(global_mean_popularity)
+    X_test.loc[:, 'Director_Popularity'] = X_test['Director_1'].map(director_popularity).fillna(global_mean_popularity)
+    
+    X_train = X_train.drop('Director_1', axis=1)
+    X_test = X_test.drop('Director_1', axis=1)
+    print("Feature 'Director_Popularity' criada e coluna original removida.")
+
     print(f"Dados divididos em treino ({X_train.shape[0]} amostras) e teste ({X_test.shape[0]} amostras).")
 
     # 4. Codificação e Padronização
