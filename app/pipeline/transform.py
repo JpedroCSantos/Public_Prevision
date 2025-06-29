@@ -148,7 +148,7 @@ def filter_dataframe(df: pd.DataFrame) -> pd.DataFrame:
 
     cols_to_drop = ['production_cost', 'vote_count', 'id', 'Genre_2', 'Genre_3', 
                     'popularity', 'Metascore', 'imdb_id', 'Rated', 'CPB_ROE', 
-                    'release_date', 'Brazilian_Title']
+                    'release_date', 'Brazilian_Title', 'runtime']
     
     # Garante que só tentaremos dropar as colunas que realmente existem
     existing_cols_to_drop = [col for col in cols_to_drop if col in df_copy.columns]

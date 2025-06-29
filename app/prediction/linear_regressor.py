@@ -29,7 +29,7 @@ def runLinearRegressor(df: pd.DataFrame):
         'Runtime', 'Vote_Average', 'IMDB_Rating', 'Month', 'Day_of_Week_sin',
         'Director_1', 'Release_Date', 'budget',
         # Removendo temporariamente para teste de ablação (isolar impacto)
-        'Prodution_country', 'runtime'
+        'Prodution_country'
     ]
     df = df.drop(columns=vars_to_drop, errors='ignore')
     print(f"Shape após remoção de variáveis para teste de ablação: {df.shape}")

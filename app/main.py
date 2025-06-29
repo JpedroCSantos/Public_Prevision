@@ -32,18 +32,18 @@ def readDataframe() -> pd.DataFrame:
 
 def build_apis_objects():
     apis = []
+    
     tmdb_key = os.getenv("TMDB_KEY")
     if tmdb_key:
         apis.append(TMDBMovieAPI(tmdb_key))
-
-    # omdb_premium_key = os.getenv("OMDB_KEY_PREMIUM")
-    # if omdb_premium_key:
-    #     apis.append(OMDBMovieAPI([omdb_premium_key]))
+        
+    omdb_key = os.getenv("OMDB_KEY_PREMIUM")
+    if omdb_key:
+        apis.append(OMDBMovieAPI([omdb_key]))
     
     # Carregar todas as chaves OMDB a partir do arquivo .env
-    # omdb_keys = [os.getenv(f"OMDB_KEY_{i}") for i in range(1, 10) if os.getenv(f"OMDB_KEY_{i}")]
-    # if omdb_keys:
-    #     apis.append(OMDBMovieAPI(omdb_keys))
+    # omdb_keys = [os.getenv(f"OMDB_KEY_{i}") for i in range(1, 10)]
+    # apis.append(OMDBMovieAPI(omdb_keys))
     
     return apis
 
@@ -98,20 +98,18 @@ if UPDATE_DATAFRAME["COMPLETE_DATAFRAME"]["API_CONSULT"]:
         print("Carregando progresso intermediário...")
         df = pd.read_parquet(TEMP_PARQUET_FILE)
     else:
-        # df = readDataframe()
-        df = read_dataframe(f"{DATA_PATH}/DATAS/ANALISYS_DATABASE", 'CONSULT_API_DATAFRAME')
-        # df = df.rename(columns={'Title_first': 'Title'})
+        df = readDataframe()
+        df = df.rename(columns={'Title_first': 'Title'})
 
     APIS_TO_CONSULT = build_apis_objects()
-    # api_names = ['TMDB', 'OMDB']
-    api_names = ['TMDB']
+    api_names = ['TMDB', 'OMDB']
     for i, api_name in enumerate(api_names):
         api = APIS_TO_CONSULT[i]
         print(f"Consultando dados no {api_name}...")
         df = complete_df(df, [api])
         load_files(df, f"{DATA_PATH}/DATAS/{api_name}_CONSULT_DATABASE", f"{api_name}_DATA")
     print("Consultas completas!")
-    load_files(df, f"{DATA_PATH}/DATAS/ANALISYS_DATABASE", "CONSULT_API_DATAFRAME_TEST")
+    load_files(df, f"{DATA_PATH}/DATAS/ANALISYS_DATABASE", "CONSULT_API_DATAFRAME")
     del df
 
 if UPDATE_DATAFRAME["COMPLETE_DATAFRAME"]["FILTER_DATAFRAME"]:
@@ -121,7 +119,6 @@ if UPDATE_DATAFRAME["COMPLETE_DATAFRAME"]["FILTER_DATAFRAME"]:
     del df
 
 if any(EXECUTE_PREVISION.values()):
-    # Carrega o dataframe final, que pode não ter todas as colunas para experimentação.
     DF_FILE = FINAL_PATH + "/" + FINAL_FILE_NAME + ".parquet"
     df = pd.read_parquet(DF_FILE)
     print("Executando modelos de previsão...")
