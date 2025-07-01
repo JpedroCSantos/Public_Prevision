@@ -13,33 +13,102 @@ from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 from statsmodels.stats.outliers_influence import variance_inflation_factor
 
-def runLinearRegressor(df: pd.DataFrame):
+def _run_diagnostics(model_sm, df_original, X_train, X_test, y_test, y_pred):
+    """
+    Executa e plota uma série de diagnósticos do modelo e de seus resíduos.
+    """
+    residuals = y_test - y_pred
+    
+    # --- Diagnóstico das Premissas ---
+    print("\n--- Análise Diagnóstica do Modelo ---")
+    
+    # 1. Normalidade dos Resíduos
+    fig, axes = plt.subplots(1, 2, figsize=(15, 6))
+    sns.histplot(residuals, kde=True, ax=axes[0])
+    axes[0].set_title('Histograma dos Resíduos')
+    sm.qqplot(residuals, line='s', ax=axes[1])
+    axes[1].set_title('Gráfico de Probabilidade Normal (Q-Q Plot)')
+    fig.suptitle('Diagnóstico da Normalidade dos Resíduos', fontsize=16)
+    plt.tight_layout(rect=(0, 0.03, 1, 0.95))
+    plt.show()
+
+    # 2. Homocedasticidade dos Resíduos
+    fig, ax = plt.subplots(figsize=(8, 6))
+    sns.scatterplot(x=y_pred, y=residuals, ax=ax, alpha=0.6)
+    ax.axhline(0, color='red', linestyle='--')
+    ax.set_title('Gráfico de Resíduos vs. Valores Previstos (Homocedasticidade)')
+    ax.set_xlabel('Valores Previstos (Log do Público)')
+    ax.set_ylabel('Resíduos')
+    plt.show()
+
+    # 3. Análise de Pontos Influentes (Alavancagem)
+    fig, ax = plt.subplots(figsize=(8, 6))
+    influence = model_sm.get_influence()
+    # O gráfico de influência plota resíduos studentizados vs. alavancagem
+    sm.graphics.influence_plot(model_sm, ax=ax, criterion="cooks")
+    ax.set_title('Diagnóstico de Pontos Influentes (Resíduos vs. Alavancagem)')
+    plt.tight_layout()
+    plt.show()
+
+    # 4. Normalidade das Variáveis Preditoras Numéricas
+    numeric_features = X_train.select_dtypes(include=np.number).columns
+    if not numeric_features.empty:
+        print("\nVerificando a Normalidade das Variáveis Preditoras Numéricas (no treino)...")
+        X_train[numeric_features].hist(bins=20, figsize=(15, 10), layout=(-1, 3))
+        plt.suptitle('Distribuição das Variáveis Preditoras Numéricas')
+        plt.tight_layout(rect=(0, 0.03, 1, 0.95))
+    plt.show()
+
+    # --- Análise Aprofundada dos Resíduos por Gênero ---
+    print("\n--- Análise de Erros por Gênero ---")
+    # Juntar os dados de teste com os resíduos para análise
+    X_test_with_genre = X_test.copy()
+    X_test_with_genre['residuals'] = residuals
+    
+    # O `Genre_1` foi transformado em dummies, precisamos do original.
+    # Vamos buscar no dataframe original 'df' usando os índices de teste.
+    original_genres = df_original.loc[X_test.index, 'Genre_1']
+    X_test_with_genre['Genre_1_original'] = original_genres
+    
+    if not X_test_with_genre.empty:
+        mean_residuals_by_genre = X_test_with_genre.groupby('Genre_1_original')['residuals'].mean().sort_values()
+        print("Média dos Resíduos (Erro de Previsão) por Gênero:")
+        print(mean_residuals_by_genre)
+
+        fig, ax = plt.subplots(figsize=(12, 7))
+        mean_residuals_by_genre.plot(kind='barh', ax=ax)
+        ax.axvline(0, color='black', linestyle='--')
+        ax.set_title('Média do Erro de Previsão por Gênero')
+        ax.set_xlabel('Média dos Resíduos (Log do Público)')
+        ax.set_ylabel('Gênero')
+        plt.tight_layout()
+    plt.show()
+
+
+def runLinearRegressor(df: pd.DataFrame, run_diagnostics: bool = False):
     """
     Executa um fluxo completo de regressão linear com base no arquivo MOVIES.csv,
     seguindo as melhores práticas de pré-processamento e avaliação de modelo.
+    
+    Args:
+        df (pd.DataFrame): O dataframe contendo os dados dos filmes.
+        run_diagnostics (bool): Se True, executa e plota os gráficos de diagnóstico do modelo.
     """
     # 1. Carregamento e Limpeza Inicial dos Dados
     df = df.dropna().drop_duplicates()
+    df_original_for_analysis = df.copy() # Salva uma cópia para análise de resíduos
     df = df.drop(['Title'], axis=1, errors='ignore')
     print(f"Formato após limpeza inicial (dropna, drop_duplicates): {df.shape}")
 
-    # ===== PLANO DE AÇÃO (ITERAÇÃO 2) =====
-    # Remoção de variáveis não significativas e das que causam overfitting para criar um modelo base.
-    vars_to_drop = [
+    # ===== Modelo Base Aprimorado =====
+    # Variáveis a serem removidas APÓS a engenharia de features ou por não serem úteis.
+    vars_to_drop_base = [
         'Runtime', 'Vote_Average', 'IMDB_Rating', 'Month', 'Day_of_Week_sin',
-        'Director_1', 'Release_Date', 'budget',
-        'Production_Companies',
-        # Removendo temporariamente para teste de ablação (isolar impacto)
-        'Prodution_country'
+        'Release_Date', 'budget'
     ]
-    df = df.drop(columns=vars_to_drop, errors='ignore')
-    print(f"Shape após remoção de variáveis para teste de ablação: {df.shape}")
+    df = df.drop(columns=vars_to_drop_base, errors='ignore')
+    print(f"Shape após remoção de variáveis base: {df.shape}")
     
-    # Simplificando a coluna de produtoras para usar apenas a primeira.
-    # Assumimos que a primeira da lista é a principal.
-    if 'Production_Companies' in df.columns:
-        df['Production_Companies'] = df['Production_Companies'].apply(lambda x: x.split(',')[0] if isinstance(x, str) else x)
-
     # Transformação logarítmica da variável alvo
     df['Public_Total'] = np.log1p(df['Public_Total'])
 
@@ -47,7 +116,7 @@ def runLinearRegressor(df: pd.DataFrame):
     X = df.drop('Public_Total', axis=1)
     y = df['Public_Total']
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-    
+
     X_train = pd.DataFrame(X_train, columns=X.columns)
     X_test = pd.DataFrame(X_test, columns=X.columns)
     
@@ -104,37 +173,61 @@ def runLinearRegressor(df: pd.DataFrame):
         X_test = X_test.drop(columns=cols_to_drop_post_feature_eng)
         print("Feature 'Cast_Power' criada e colunas originais de elenco removidas.")
 
-    # 4. Engenharia de Features: Níveis de Produtora (Pós-Split)
-    print("Iniciando engenharia de features: Níveis de Produtora (Production_Company_Power)...")
-    if 'Production_Companies' in X_train.columns:
-        # Contar a frequência de cada produtora APENAS no conjunto de treino
-        company_counts = X_train['Production_Companies'].value_counts()
+    # 4. Engenharia de Features: Níveis de Diretor (Pós-Split)
+    print("Iniciando engenharia de features: Níveis de Diretor (Director_Power)...")
+    if 'Director_1' in X_train.columns:
+        # Contar a frequência de cada diretor APENAS no conjunto de treino
+        director_counts = X_train['Director_1'].value_counts()
         
         # Definir os limiares para os tiers (quantis)
-        q1_comp = company_counts.quantile(0.66)
-        q2_comp = company_counts.quantile(0.95)
+        q1_dir = director_counts.quantile(0.66)
+        q2_dir = director_counts.quantile(0.95)
         
-        def get_company_tier(company, counts, q1, q2):
-            count = counts.get(company, 0)
+        def get_director_tier(director, counts, q1, q2):
+            count = counts.get(director, 0)
             if count > q2:
-                return 3 # Tier 1 (Major Studio)
+                return 3 # Tier 1 (A-Lister Director)
             elif count > q1:
-                return 2 # Tier 2 (Regular)
+                return 2 # Tier 2 (Regular Director)
             else:
-                return 1 # Tier 3 (Indie/Other)
+                return 1 # Tier 3 (Other/New Director)
 
-        # Criar a feature de "força da produtora"
-        X_train['Production_Company_Power'] = X_train['Production_Companies'].apply(lambda x: get_company_tier(x, company_counts, q1_comp, q2_comp))
-        X_test['Production_Company_Power'] = X_test['Production_Companies'].apply(lambda x: get_company_tier(x, company_counts, q1_comp, q2_comp))
+        # Criar a feature de "força do diretor"
+        X_train['Director_Power'] = X_train['Director_1'].apply(lambda x: get_director_tier(x, director_counts, q1_dir, q2_dir))
+        X_test['Director_Power'] = X_test['Director_1'].apply(lambda x: get_director_tier(x, director_counts, q1_dir, q2_dir))
 
         # Remover a coluna original
-        X_train = X_train.drop(columns=['Production_Companies'])
-        X_test = X_test.drop(columns=['Production_Companies'])
-        print("Feature 'Production_Company_Power' criada e coluna original de produtora removida.")
+        X_train = X_train.drop(columns=['Director_1'])
+        X_test = X_test.drop(columns=['Director_1'])
+        print("Feature 'Director_Power' criada e coluna original de diretor removida.")
+
+    # 5. Engenharia de Features: Tiers de Mercado (Pós-Split) - CORRIGIDO
+    print("Iniciando engenharia de features: Níveis de Mercado (Market_Tier)...")
+    country_col = 'Prodution_country' # Corrigindo o nome da coluna
+    if country_col in X_train.columns:
+        # Definir os tiers de mercado com base no conhecimento de domínio
+        major_markets = ['United Kingdom', 'France', 'Germany', 'Canada', 'Japan', 'China', 'India']
+
+        def get_market_tier(country):
+            if country == 'USA' or country == 'ESTADOS UNIDOS': # Acomodar variações
+                return 3 # Tier 3 (Mercado Dominante)
+            elif country in major_markets:
+                return 2 # Tier 2 (Grandes Mercados Internacionais)
+            else:
+                return 1 # Tier 1 (Mercados Locais/Outros)
+
+        # Criar a nova feature
+        X_train['Market_Tier'] = X_train[country_col].apply(get_market_tier)
+        X_test['Market_Tier'] = X_test[country_col].apply(get_market_tier)
+        
+        # Remover a coluna original
+        X_train = X_train.drop(columns=[country_col, 'Production_Companies'], errors='ignore')
+        X_test = X_test.drop(columns=[country_col, 'Production_Companies'], errors='ignore')
+        print("Feature 'Market_Tier' criada e colunas originais removidas.")
 
     print(f"Dados divididos em treino ({X_train.shape[0]} amostras) e teste ({X_test.shape[0]} amostras).")
 
-    # 5. Pipeline de Pré-processamento
+    # 6. Pipeline de Pré-processamento
     # Definindo as colunas numéricas e categóricas
     numeric_features = X_train.select_dtypes(include=np.number).columns.tolist()
     categorical_features = X_train.select_dtypes(include=['object', 'category']).columns.tolist()
@@ -153,7 +246,7 @@ def runLinearRegressor(df: pd.DataFrame):
         remainder='passthrough'
     )
     
-    # 6. Treinamento e Avaliação do Modelo
+    # 7. Treinamento e Avaliação do Modelo
     # Usaremos um pipeline para encadear o pré-processamento e o modelo
     model_pipeline = Pipeline(steps=[('preprocessor', preprocessor),
                                      ('regressor', LinearRegression())])
@@ -162,66 +255,74 @@ def runLinearRegressor(df: pd.DataFrame):
     model_pipeline.fit(X_train, y_train)
     print("Pipeline de pré-processamento e treinamento concluído.")
     
-    # 7. Análise Inferencial com Statsmodels (após o treino do pipeline)
+    # 8. Análise Inferencial com Statsmodels (após o treino do pipeline)
     print("\n--- Análise Inferencial do Modelo (Statsmodels) ---")
+    model_sm = None
     try:
-        # Extrair os nomes das features do pipeline
-        numeric_features_list = list(numeric_features)
-        all_feature_names = numeric_features_list # Começa com as numéricas
+        # Extrair os nomes das features após o pré-processamento
+        feature_names = preprocessor.get_feature_names_out()
+        
+        # Dados de treino transformados
+        X_train_processed = preprocessor.transform(X_train).toarray()
+        X_train_processed = pd.DataFrame(X_train_processed, columns=feature_names, index=X_train.index)
+        X_train_processed = sm.add_constant(X_train_processed) # Adicionar o intercepto
 
-        # Apenas tenta extrair nomes do OneHotEncoder se ele foi treinado (se havia features categóricas)
-        if categorical_features:
-            ohe_feature_names = list(model_pipeline.named_steps['preprocessor'].named_transformers_['cat'].get_feature_names_out(categorical_features))
-            all_feature_names = numeric_features_list + ohe_feature_names
-        
-        # Transformar os dados de treino para o formato que o statsmodels espera
-        X_train_transformed = model_pipeline.named_steps['preprocessor'].transform(X_train).toarray()
-        X_train_transformed_df = pd.DataFrame(X_train_transformed, columns=all_feature_names, index=X_train.index)
-        
-        # Adicionar a constante (intercepto) e treinar o modelo OLS
-        X_train_sm = sm.add_constant(X_train_transformed_df)
-        model_sm = sm.OLS(y_train, X_train_sm).fit()
-        
+        # Criar e treinar o modelo do statsmodels
+        model_sm = sm.OLS(y_train, X_train_processed)
+        model_sm = model_sm.fit(cov_type='HC3')
+
         print(model_sm.summary())
 
     except Exception as e:
         print(f"Não foi possível gerar o sumário do Statsmodels: {e}")
 
-    # 8. Avaliação do Modelo no Conjunto de Teste
+    # 9. Avaliação do Modelo no Conjunto de Teste
+    print("\n--- Avaliação do Modelo no Conjunto de Teste ---")
     y_pred = model_pipeline.predict(X_test)
-    
-    # Validação Cruzada para uma avaliação mais robusta do R² no treino
-    cv_scores = cross_val_score(model_pipeline, X_train, y_train, cv=5, scoring='r2')
-    # Métricas de avaliação
-    mse = mean_squared_error(y_test, y_pred)
-    r2 = r2_score(y_test, y_pred)
+    r2_test = r2_score(y_test, y_pred)
+    mse_test = mean_squared_error(y_test, y_pred)
+    print(f"R² (Coeficiente de Determinação) no Teste: {r2_test:.4f}")
+    print(f"Erro Quadrático Médio (MSE) no Teste: {mse_test:.4f}")
 
-    print(f"\n📊 Resultados da Regressão Linear (com Gênero e Produtora):")
-    print(f"🔹 Mean Squared Error (MSE) no teste: {mse:.3f}")
-    print(f"🔹 R² no teste: {r2:.3f}")
-    print(f"🔹 Cross-Validation R² Scores (no treino): {cv_scores}")
-    print(f"🔹 Média dos R² (CV no treino): {np.mean(cv_scores):.3f}")
-
-    # 9. Diagnóstico de Resíduos
-    # Hair (2009) enfatiza a importância de analisar os resíduos para validar as premissas da regressão.
+    # 10. Análise de Resíduos e Maiores Erros
     residuals = y_test - y_pred
-    fig, axes = plt.subplots(1, 2, figsize=(15, 6))
+    
+    # Juntar os dados de teste originais com os resultados para identificar os filmes
+    results_df = df_original_for_analysis.loc[y_test.index].copy()
+    results_df['Public_Total_Real_Log'] = y_test
+    results_df['Public_Total_Previsto_Log'] = y_pred
+    results_df['Residual'] = residuals
+    
+    # Adicionar a feature Cast_Power que foi criada dinamicamente
+    if 'Cast_Power' in X_test.columns:
+        results_df['Cast_Power'] = X_test['Cast_Power']
+        
+    # Reverter a transformação log para ver os valores de público originais
+    results_df['Public_Total_Real'] = np.expm1(results_df['Public_Total_Real_Log'])
+    results_df['Public_Total_Previsto'] = np.expm1(results_df['Public_Total_Previsto_Log'])
 
-    # Gráfico de Resíduos vs. Valores Previstos: idealmente, pontos aleatórios em torno da linha zero.
-    sns.scatterplot(x=y_pred, y=residuals, ax=axes[0], alpha=0.6)
-    axes[0].axhline(0, color='red', linestyle='--')
-    axes[0].set_title('Gráfico de Resíduos vs. Valores Previstos')
-    axes[0].set_xlabel('Valores Previstos (Log do Público)')
-    axes[0].set_ylabel('Resíduos')
+    # Ordenar pelos maiores erros negativos (modelo foi otimista demais)
+    maiores_erros = results_df.sort_values(by='Residual', ascending=True).head(15)
+    
+    print("\n--- Análise dos Filmes com Maiores Erros de Previsão (Resíduos Negativos) ---")
+    print("O modelo previu um público muito maior do que o real para estes filmes:")
+    
+    cols_to_display = ['Title', 'Public_Total_Real', 'Public_Total_Previsto', 'Residual', 'Genre_1', 'Cast_Power']
+    existing_cols_to_display = [col for col in cols_to_display if col in maiores_erros.columns]
+    
+    print(maiores_erros[existing_cols_to_display])
 
-    # Gráfico Q-Q: idealmente, os pontos devem seguir a linha diagonal vermelha.
-    sm.qqplot(residuals, line='s', ax=axes[1])
-    axes[1].set_title('Gráfico de Probabilidade Normal (Q-Q Plot)')
-
-    plt.tight_layout()
-    plt.show()
+    # 11. Execução dos Diagnósticos (Opcional)
+    if run_diagnostics and model_sm:
+        print("\n--- Executando Diagnósticos do Modelo ---")
+        _run_diagnostics(model_sm, df_original_for_analysis, X_train, X_test, y_test, y_pred)
+    else:
+        print("\nDiagnósticos do Statsmodels não foram executados (parâmetro 'run_diagnostics' é False ou modelo SM falhou).")
 
 
 if __name__ == '__main__':
-    # runLinearRegressor()
-    print ("testes")
+    # Carregando os dados
+    df = pd.read_csv('data/output/dataset_final_com_publico.csv')
+    
+    # Executando o modelo e a análise com diagnósticos ativados
+    runLinearRegressor(df, run_diagnostics=True)

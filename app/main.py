@@ -125,7 +125,7 @@ if any(EXECUTE_PREVISION.values()):
 
     if EXECUTE_PREVISION["LINEAR_REGRESSOR"]:
         print("--- Regressão Linear ---")
-        runLinearRegressor(df)
+        runLinearRegressor(df, run_diagnostics=True)
 
     if EXECUTE_PREVISION["RANDON_FOREST"]:
         print("--- Random Forest ---")
